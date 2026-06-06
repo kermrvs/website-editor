@@ -1,5 +1,5 @@
 import type { NodeType } from '../model/types'
-import { canHaveChildren } from '../model/document'
+import { canHaveChildren, findParentId } from '../model/document'
 import { useEditorStore } from '../store'
 
 const BLOCKS: { type: NodeType; label: string }[] = [
@@ -14,11 +14,19 @@ export function Palette() {
   const addNode = useEditorStore((s) => s.addNode)
   const doc = useEditorStore((s) => s.doc)
   const selectedId = useEditorStore((s) => s.selectedId)
+  const startDragNew = useEditorStore((s) => s.startDragNew)
+  const endDrag = useEditorStore((s) => s.endDrag)
 
-  const targetId =
-    selectedId && canHaveChildren(doc.nodes[selectedId]?.type)
-      ? selectedId
-      : doc.root
+  const resolveTarget = (): string => {
+    if (!selectedId) return doc.root
+    const selected = doc.nodes[selectedId]
+    if (selected && canHaveChildren(selected.type)) return selectedId
+    const parentId = findParentId(doc, selectedId)
+    if (parentId && canHaveChildren(doc.nodes[parentId].type)) return parentId
+    return doc.root
+  }
+
+  const targetId = resolveTarget()
 
   return (
     <div className="we-palette">
@@ -27,7 +35,13 @@ export function Palette() {
         <button
           key={b.type}
           className="we-palette-item"
+          draggable
           onClick={() => addNode(b.type, targetId)}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'copy'
+            startDragNew(b.type)
+          }}
+          onDragEnd={() => endDrag()}
         >
           {b.label}
         </button>

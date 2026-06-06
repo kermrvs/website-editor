@@ -1,21 +1,57 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, DragEvent } from 'react'
+import { Fragment, useRef } from 'react'
 import type { NodeId } from '../model/types'
+import {
+  buttonBaseStyle,
+  imageBaseStyle,
+  layoutStyle,
+  styleFromProps,
+} from '../model/render'
 import { useEditorStore } from '../store'
 
 interface Props {
   id: NodeId
 }
 
+function computeDropIndex(
+  container: HTMLElement,
+  e: DragEvent,
+  horizontal: boolean,
+): number {
+  const kids = Array.from(container.children).filter(
+    (el) => (el as HTMLElement).dataset.nodeId,
+  ) as HTMLElement[]
+
+  for (let i = 0; i < kids.length; i++) {
+    const r = kids[i].getBoundingClientRect()
+    const mid = horizontal ? r.left + r.width / 2 : r.top + r.height / 2
+    const pos = horizontal ? e.clientX : e.clientY
+    if (pos < mid) return i
+  }
+  return kids.length
+}
+
 export function NodeRenderer({ id }: Props) {
   const node = useEditorStore((s) => s.doc.nodes[id])
   const selectedId = useEditorStore((s) => s.selectedId)
   const select = useEditorStore((s) => s.select)
+  const draggingId = useEditorStore((s) => s.draggingId)
+  const draggingType = useEditorStore((s) => s.draggingType)
+  const dropTarget = useEditorStore((s) => s.dropTarget)
+  const startDragExisting = useEditorStore((s) => s.startDragExisting)
+  const setDropTarget = useEditorStore((s) => s.setDropTarget)
+  const endDrag = useEditorStore((s) => s.endDrag)
+  const moveNode = useEditorStore((s) => s.moveNode)
+  const addNode = useEditorStore((s) => s.addNode)
+
+  const ref = useRef<HTMLDivElement>(null)
 
   if (!node) return null
   const isSelected = selectedId === id
+  const isDragging = draggingId !== null || draggingType !== null
 
   const selectionStyle: CSSProperties = isSelected
-    ? { outline: '2px solid #4f46e5', outlineOffset: 2 }
+    ? { outline: '2px solid #4f46e5', outlineOffset: -1 }
     : {}
 
   const onClick = (e: React.MouseEvent) => {
@@ -23,40 +59,117 @@ export function NodeRenderer({ id }: Props) {
     select(id)
   }
 
+  const onDragStart = (e: DragEvent) => {
+    e.stopPropagation()
+    e.dataTransfer.effectAllowed = 'move'
+    startDragExisting(id)
+  }
+
+  const onDragEnd = () => endDrag()
+
   const p = node.props
+  const base = styleFromProps(p)
+  const layout = (p.layout as string) ?? 'column'
+
+  const containerProps = (horizontal: boolean) => ({
+    ref,
+    onDragOver: (e: DragEvent) => {
+      if (!isDragging) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (!ref.current) return
+      const index = computeDropIndex(ref.current, e, horizontal)
+      setDropTarget({ parentId: id, index })
+    },
+    onDrop: (e: DragEvent) => {
+      if (!isDragging) return
+      e.preventDefault()
+      e.stopPropagation()
+      const dt = useEditorStore.getState().dropTarget
+      const index =
+        dt && dt.parentId === id ? dt.index : node.children.length
+      const { draggingId: drag, draggingType: dragType } =
+        useEditorStore.getState()
+      if (dragType) addNode(dragType, id, index)
+      else if (drag) moveNode(drag, id, index)
+      endDrag()
+    },
+  })
+
+  const renderChildren = (horizontal: boolean) => {
+    const dropIndex =
+      dropTarget && dropTarget.parentId === id ? dropTarget.index : -1
+    const lineClass = horizontal ? 'we-dropline-v' : 'we-dropline-h'
+
+    if (node.children.length === 0) {
+      const label = node.type === 'root' ? 'page' : node.type
+      return (
+        <>
+          {dropIndex === 0 && <span className={lineClass} />}
+          <span className="we-empty">Empty {label} — drop here</span>
+        </>
+      )
+    }
+
+    return (
+      <>
+        {node.children.map((childId, i) => (
+          <Fragment key={childId}>
+            {dropIndex === i && <span className={lineClass} />}
+            <NodeRenderer id={childId} />
+          </Fragment>
+        ))}
+        {dropIndex === node.children.length && <span className={lineClass} />}
+      </>
+    )
+  }
 
   switch (node.type) {
     case 'root':
       return (
-        <div className="we-root" onClick={() => select(null)}>
-          {node.children.map((childId) => (
-            <NodeRenderer key={childId} id={childId} />
-          ))}
+        <div
+          className="we-root"
+          onClick={() => select(null)}
+          {...containerProps(false)}
+        >
+          {renderChildren(false)}
         </div>
       )
 
-    case 'box':
+    case 'box': {
+      const horizontal = layout === 'row'
       return (
         <div
+          className="we-box"
+          data-node-id={id}
+          draggable
           onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
           style={{
-            padding: p.padding as number,
-            background: p.background as string,
-            border: '1px dashed #d1d5db',
-            minHeight: 24,
+            ...layoutStyle(p),
+            ...base,
+            minHeight: node.children.length ? undefined : 36,
             ...selectionStyle,
           }}
+          {...containerProps(horizontal)}
         >
-          {node.children.map((childId) => (
-            <NodeRenderer key={childId} id={childId} />
-          ))}
+          {renderChildren(horizontal)}
         </div>
       )
+    }
 
     case 'heading': {
       const Tag = `h${(p.level as number) ?? 2}` as 'h1'
       return (
-        <Tag onClick={onClick} style={{ margin: '0.4em 0', ...selectionStyle }}>
+        <Tag
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          style={{ margin: 0, ...base, ...selectionStyle }}
+        >
           {p.text as string}
         </Tag>
       )
@@ -64,7 +177,14 @@ export function NodeRenderer({ id }: Props) {
 
     case 'text':
       return (
-        <p onClick={onClick} style={{ margin: '0.4em 0', ...selectionStyle }}>
+        <p
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          style={{ margin: 0, ...base, ...selectionStyle }}
+        >
           {p.text as string}
         </p>
       )
@@ -72,16 +192,12 @@ export function NodeRenderer({ id }: Props) {
     case 'button':
       return (
         <button
+          data-node-id={id}
+          draggable
           onClick={onClick}
-          style={{
-            padding: '8px 16px',
-            background: '#4f46e5',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer',
-            ...selectionStyle,
-          }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          style={{ ...buttonBaseStyle, ...base, ...selectionStyle }}
         >
           {p.text as string}
         </button>
@@ -90,10 +206,14 @@ export function NodeRenderer({ id }: Props) {
     case 'image':
       return (
         <img
+          data-node-id={id}
+          draggable
           onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
           src={p.src as string}
           alt={p.alt as string}
-          style={{ maxWidth: '100%', display: 'block', ...selectionStyle }}
+          style={{ ...imageBaseStyle, ...base, ...selectionStyle }}
         />
       )
 

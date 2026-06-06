@@ -9,7 +9,7 @@ export function makeId(prefix = 'n'): string {
 
 const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   root: {},
-  box: { padding: 16, background: '#ffffff' },
+  box: { layout: 'column', gap: 8, padding: 16 },
   text: { text: 'New text' },
   heading: { text: 'Heading', level: 2 },
   button: { text: 'Button' },
