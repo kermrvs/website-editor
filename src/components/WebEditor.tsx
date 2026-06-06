@@ -24,6 +24,10 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
   const setProject = useEditorStore((s) => s.setProject)
   const mode = useEditorStore((s) => s.mode)
   const setMode = useEditorStore((s) => s.setMode)
+  const undo = useEditorStore((s) => s.undo)
+  const redo = useEditorStore((s) => s.redo)
+  const canUndo = useEditorStore((s) => s.past.length > 0)
+  const canRedo = useEditorStore((s) => s.future.length > 0)
 
   useEffect(() => {
     if (value && value !== useEditorStore.getState().project) setProject(value)
@@ -32,6 +36,26 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
   useEffect(() => {
     onChange?.(project)
   }, [project, onChange])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const target = e.target as HTMLElement
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        useEditorStore.getState().undo()
+      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        e.preventDefault()
+        useEditorStore.getState().redo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const download = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
@@ -57,6 +81,14 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
       <div className="we-toolbar">
         <strong className="we-brand">web-editor</strong>
         <div className="we-toolbar-actions">
+          <div className="we-mode-switch">
+            <button disabled={!canUndo} onClick={() => undo()} title="Undo (Ctrl+Z)">
+              ↶
+            </button>
+            <button disabled={!canRedo} onClick={() => redo()} title="Redo (Ctrl+Y)">
+              ↷
+            </button>
+          </div>
           <div className="we-mode-switch">
             {MODES.map((m) => (
               <button

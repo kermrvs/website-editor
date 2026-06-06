@@ -40,7 +40,14 @@ export function styleFromProps(p: Record<string, unknown>): CSSProperties {
   if (p.color != null) s.color = p.color as string
   if (p.padding != null) s.padding = p.padding as number
   if (p.margin != null) s.margin = p.margin as number
-  if (p.radius != null) s.borderRadius = p.radius as number
+  const corners = [p.radiusTL, p.radiusTR, p.radiusBR, p.radiusBL]
+  if (corners.some((c) => c != null)) {
+    const base = (p.radius as number) ?? 0
+    const v = (c: unknown) => (c as number) ?? base
+    s.borderRadius = `${v(p.radiusTL)}px ${v(p.radiusTR)}px ${v(p.radiusBR)}px ${v(p.radiusBL)}px`
+  } else if (p.radius != null) {
+    s.borderRadius = p.radius as number
+  }
   if (p.width != null) s.width = p.width as number | string
   if (p.maxWidth != null) {
     s.maxWidth = p.maxWidth as number
@@ -53,6 +60,18 @@ export function styleFromProps(p: Record<string, unknown>): CSSProperties {
   if (p.textAlign != null) s.textAlign = p.textAlign as CSSProperties['textAlign']
   if (p.shadow) s.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)'
   if (p.border) s.border = '1px solid #e5e7eb'
+  if (p.scale != null) s.transform = `scale(${p.scale as number})`
+  if (p.bgImage) {
+    const url = `url("${p.bgImage as string}")`
+    const overlay = p.bgOverlay as number
+    s.backgroundImage =
+      overlay > 0
+        ? `linear-gradient(rgba(0, 0, 0, ${overlay}), rgba(0, 0, 0, ${overlay})), ${url}`
+        : url
+    s.backgroundSize = (p.bgSize as string) ?? 'cover'
+    s.backgroundPosition = (p.bgPosition as string) ?? 'center'
+    s.backgroundRepeat = 'no-repeat'
+  }
   return s
 }
 
@@ -86,9 +105,20 @@ export interface NodeView {
   text?: string
   selfClosing?: boolean
   attrs?: Record<string, string>
+  hoverStyle?: CSSProperties
 }
 
 export function describeNode(node: EditorNode, ctx?: RenderContext): NodeView {
+  const view = viewForType(node, ctx)
+  const hover = node.props.hover
+  if (hover) {
+    const hoverStyle = styleFromProps(hover as Record<string, unknown>)
+    if (Object.keys(hoverStyle).length) view.hoverStyle = hoverStyle
+  }
+  return view
+}
+
+function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
   const p = node.props
   switch (node.type) {
     case 'root':
@@ -179,24 +209,43 @@ function attrString(attrs?: Record<string, string>): string {
     .join('')
 }
 
-class StyleSheet {
-  private classes = new Map<string, string>()
+interface StyleEntry {
+  name: string
+  css: string
+  hoverCss: string
+}
 
-  classFor(style: CSSProperties): string | null {
+class StyleSheet {
+  private entries = new Map<string, StyleEntry>()
+
+  classFor(style: CSSProperties, hover?: CSSProperties): string | null {
     const css = cssString(style)
-    if (!css) return null
-    let name = this.classes.get(css)
-    if (!name) {
-      name = `c${this.classes.size + 1}`
-      this.classes.set(css, name)
+    const hoverCss = hover ? cssString(hover) : ''
+    if (!css && !hoverCss) return null
+
+    const key = `${css}||${hoverCss}`
+    let entry = this.entries.get(key)
+    if (!entry) {
+      entry = { name: `c${this.entries.size + 1}`, css, hoverCss }
+      this.entries.set(key, entry)
     }
-    return name
+    return entry.name
   }
 
   toCss(indent: string): string {
-    return [...this.classes.entries()]
-      .map(([css, name]) => `${indent}.${name} { ${css} }`)
-      .join('\n')
+    const lines: string[] = []
+    for (const entry of this.entries.values()) {
+      const base = entry.hoverCss
+        ? entry.css
+          ? `${entry.css}; transition: all 0.2s ease`
+          : 'transition: all 0.2s ease'
+        : entry.css
+      if (base) lines.push(`${indent}.${entry.name} { ${base} }`)
+      if (entry.hoverCss) {
+        lines.push(`${indent}.${entry.name}:hover { ${entry.hoverCss} }`)
+      }
+    }
+    return lines.join('\n')
   }
 }
 
@@ -212,7 +261,7 @@ function serializeNode(
 
   const view = describeNode(node, ctx)
   const pad = '  '.repeat(indent)
-  const className = sheet.classFor(view.style)
+  const className = sheet.classFor(view.style, view.hoverStyle)
   const classAttr = className ? ` class="${className}"` : ''
   const attrs = attrString(view.attrs)
 

@@ -22,11 +22,17 @@ interface EditorState {
   selectedId: NodeId | null
   mode: EditorMode
 
+  past: Project[]
+  future: Project[]
+  lastTag: string | null
+
   draggingId: NodeId | null
   draggingType: NodeType | null
   dropTarget: DropTarget | null
 
   setProject: (project: Project) => void
+  undo: () => void
+  redo: () => void
   addPage: () => void
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
@@ -47,26 +53,51 @@ interface EditorState {
   endDrag: () => void
 }
 
+const HISTORY_LIMIT = 100
+
 export const useEditorStore = create<EditorState>((set, get) => {
   const initialProject = createEmptyProject()
 
-  const commit = (doc: EditorDocument, extra: Partial<EditorState> = {}) =>
-    set((state) => ({
-      doc,
-      project: {
+  const commit = (
+    doc: EditorDocument,
+    extra: Partial<EditorState> = {},
+    tag?: string,
+  ) =>
+    set((state) => {
+      const project = {
         ...state.project,
         pages: state.project.pages.map((p) =>
           p.id === state.project.currentPageId ? { ...p, doc } : p,
         ),
-      },
-      ...extra,
-    }))
+      }
+      const coalesce = tag !== undefined && tag === state.lastTag
+      return {
+        doc,
+        project,
+        past: coalesce
+          ? state.past
+          : [...state.past, state.project].slice(-HISTORY_LIMIT),
+        future: [],
+        lastTag: tag ?? null,
+        ...extra,
+      }
+    })
+
+  const pushHistory = (state: EditorState) => ({
+    past: [...state.past, state.project].slice(-HISTORY_LIMIT),
+    future: [] as Project[],
+    lastTag: null,
+  })
 
   return {
     project: initialProject,
     doc: currentDoc(initialProject),
     selectedId: null,
     mode: 'visual',
+
+    past: [],
+    future: [],
+    lastTag: null,
 
     draggingId: null,
     draggingType: null,
@@ -79,13 +110,42 @@ export const useEditorStore = create<EditorState>((set, get) => {
           state.selectedId && doc.nodes[state.selectedId]
             ? state.selectedId
             : null
-        return { project, doc, selectedId }
+        return { project, doc, selectedId, past: [], future: [], lastTag: null }
+      }),
+
+    undo: () =>
+      set((state) => {
+        if (!state.past.length) return state
+        const previous = state.past[state.past.length - 1]
+        return {
+          project: previous,
+          doc: currentDoc(previous),
+          past: state.past.slice(0, -1),
+          future: [state.project, ...state.future].slice(0, HISTORY_LIMIT),
+          selectedId: null,
+          lastTag: null,
+        }
+      }),
+
+    redo: () =>
+      set((state) => {
+        if (!state.future.length) return state
+        const next = state.future[0]
+        return {
+          project: next,
+          doc: currentDoc(next),
+          past: [...state.past, state.project].slice(-HISTORY_LIMIT),
+          future: state.future.slice(1),
+          selectedId: null,
+          lastTag: null,
+        }
       }),
 
     addPage: () =>
       set((state) => {
         const page = createPage(`Page ${state.project.pages.length + 1}`)
         return {
+          ...pushHistory(state),
           project: {
             pages: [...state.project.pages, page],
             currentPageId: page.id,
@@ -104,11 +164,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
             ? pages[0].id
             : state.project.currentPageId
         const project = { pages, currentPageId }
-        return { project, doc: currentDoc(project), selectedId: null }
+        return {
+          ...pushHistory(state),
+          project,
+          doc: currentDoc(project),
+          selectedId: null,
+        }
       }),
 
     renamePage: (id, name) =>
       set((state) => ({
+        ...pushHistory(state),
         project: {
           ...state.project,
           pages: state.project.pages.map((p) =>
@@ -125,11 +191,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
           project: { ...state.project, currentPageId: id },
           doc: page.doc,
           selectedId: null,
+          lastTag: null,
         }
       }),
 
     setMode: (mode) => set({ mode }),
-    select: (id) => set({ selectedId: id }),
+    select: (id) => set({ selectedId: id, lastTag: null }),
 
     addNode: (type, parentId, index) => {
       const { doc } = get()
@@ -161,13 +228,17 @@ export const useEditorStore = create<EditorState>((set, get) => {
       const { doc } = get()
       const node = doc.nodes[id]
       if (!node) return
-      commit({
-        ...doc,
-        nodes: {
-          ...doc.nodes,
-          [id]: { ...node, props: { ...node.props, ...props } },
+      commit(
+        {
+          ...doc,
+          nodes: {
+            ...doc.nodes,
+            [id]: { ...node, props: { ...node.props, ...props } },
+          },
         },
-      })
+        {},
+        `props:${id}:${Object.keys(props).join(',')}`,
+      )
     },
 
     removeNode: (id) => {
