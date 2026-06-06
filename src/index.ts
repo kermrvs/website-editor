@@ -1,4 +1,3 @@
-// Public API of the library — this is what consumers import.
 export { WebEditor } from './components/WebEditor'
 export type { WebEditorProps } from './components/WebEditor'
 

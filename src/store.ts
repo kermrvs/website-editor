@@ -18,11 +18,8 @@ interface EditorState {
   setMode: (mode: EditorMode) => void
   select: (id: NodeId | null) => void
 
-  /** Add a new block of `type` as the last child of `parentId`. */
   addNode: (type: NodeType, parentId: NodeId) => void
-  /** Update props on a single node (shallow-merged). */
   updateProps: (id: NodeId, props: Record<string, unknown>) => void
-  /** Remove a node and all of its descendants. */
   removeNode: (id: NodeId) => void
 }
 
@@ -71,9 +68,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   removeNode: (id) => {
     const { doc, selectedId } = get()
-    if (id === doc.root) return // never remove the root
+    if (id === doc.root) return
 
-    // Collect the node and all descendants to delete.
     const toDelete = new Set<string>()
     const stack = [id]
     while (stack.length) {

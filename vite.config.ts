@@ -3,9 +3,6 @@ import react from '@vitejs/plugin-react'
 import dts from 'vite-plugin-dts'
 import { resolve } from 'node:path'
 
-// Two modes:
-//  - `vite`        -> runs the demo app (index.html) for development
-//  - `vite build`  -> builds the library (src/index.ts) into dist/
 export default defineConfig({
   plugins: [
     react(),
@@ -18,7 +15,6 @@ export default defineConfig({
       fileName: 'web-editor',
     },
     rollupOptions: {
-      // Don't bundle React into the library — the host app provides it.
       external: ['react', 'react-dom', 'react/jsx-runtime'],
       output: {
         globals: {

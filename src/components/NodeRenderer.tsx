@@ -6,10 +6,6 @@ interface Props {
   id: NodeId
 }
 
-/**
- * Recursively renders one node from the document as a real DOM element.
- * Clicking a node selects it; the selected node gets an outline.
- */
 export function NodeRenderer({ id }: Props) {
   const node = useEditorStore((s) => s.doc.nodes[id])
   const selectedId = useEditorStore((s) => s.selectedId)

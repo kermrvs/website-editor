@@ -1,9 +1,5 @@
 import { useEditorStore } from '../store'
 
-/**
- * Right sidebar. Shows editable properties for the selected node.
- * For now it edits the common text/number props; this grows per node type.
- */
 export function Inspector() {
   const selectedId = useEditorStore((s) => s.selectedId)
   const node = useEditorStore((s) => (selectedId ? s.doc.nodes[selectedId] : null))

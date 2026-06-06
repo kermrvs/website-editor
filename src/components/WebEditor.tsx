@@ -7,29 +7,20 @@ import { Inspector } from './Inspector'
 import '../styles.css'
 
 export interface WebEditorProps {
-  /** Controlled document. If provided, the editor renders this document. */
   value?: EditorDocument
-  /** Called whenever the document changes. */
   onChange?: (doc: EditorDocument) => void
 }
 
-/**
- * The main editor component. Drop it into any React app:
- *
- *   <WebEditor value={doc} onChange={setDoc} />
- */
 export function WebEditor({ value, onChange }: WebEditorProps) {
   const doc = useEditorStore((s) => s.doc)
   const setDoc = useEditorStore((s) => s.setDoc)
   const mode = useEditorStore((s) => s.mode)
   const setMode = useEditorStore((s) => s.setMode)
 
-  // Sync incoming controlled value into the store.
   useEffect(() => {
     if (value) setDoc(value)
   }, [value, setDoc])
 
-  // Notify the host app of changes.
   useEffect(() => {
     onChange?.(doc)
   }, [doc, onChange])

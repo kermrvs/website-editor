@@ -1,13 +1,12 @@
 import type { EditorDocument, EditorNode, NodeType } from './types'
 
 let counter = 0
-/** Simple unique id generator for new nodes. */
+
 export function makeId(prefix = 'n'): string {
   counter += 1
   return `${prefix}_${Date.now().toString(36)}_${counter}`
 }
 
-/** Sensible default props for each block type when it is first created. */
 const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   root: {},
   box: { padding: 16, background: '#ffffff' },
@@ -17,7 +16,6 @@ const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   image: { src: 'https://placehold.co/200x120', alt: '' },
 }
 
-/** Whether a node type is allowed to contain children. */
 export function canHaveChildren(type: NodeType): boolean {
   return type === 'root' || type === 'box'
 }
@@ -31,7 +29,6 @@ export function createNode(type: NodeType): EditorNode {
   }
 }
 
-/** An empty starter document containing just a root with one box inside. */
 export function createEmptyDocument(): EditorDocument {
   const root = createNode('root')
   const box = createNode('box')
@@ -54,7 +51,6 @@ export function createEmptyDocument(): EditorDocument {
   }
 }
 
-/** Find the id of the parent that contains `childId`, or null for the root. */
 export function findParentId(
   doc: EditorDocument,
   childId: string,
