@@ -13,6 +13,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 export function Inspector() {
   const selectedId = useEditorStore((s) => s.selectedId)
   const node = useEditorStore((s) => (selectedId ? s.doc.nodes[selectedId] : null))
+  const pages = useEditorStore((s) => s.project.pages)
   const updateProps = useEditorStore((s) => s.updateProps)
   const removeNode = useEditorStore((s) => s.removeNode)
   const duplicateNode = useEditorStore((s) => s.duplicateNode)
@@ -33,7 +34,10 @@ export function Inspector() {
 
   const isContainer = node.type === 'box'
   const isText =
-    node.type === 'heading' || node.type === 'text' || node.type === 'button'
+    node.type === 'heading' ||
+    node.type === 'text' ||
+    node.type === 'button' ||
+    node.type === 'link'
 
   return (
     <div className="we-inspector">
@@ -66,6 +70,22 @@ export function Inspector() {
       {node.type === 'image' && (
         <Row label="Source URL">
           <input value={str(p.src)} onChange={(e) => set({ src: e.target.value })} />
+        </Row>
+      )}
+
+      {node.type === 'link' && (
+        <Row label="Link to page">
+          <select
+            value={str(p.linkTo)}
+            onChange={(e) => set({ linkTo: e.target.value })}
+          >
+            <option value="">— none —</option>
+            {pages.map((pg) => (
+              <option key={pg.id} value={pg.id}>
+                {pg.name}
+              </option>
+            ))}
+          </select>
         </Row>
       )}
 

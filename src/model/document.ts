@@ -14,6 +14,7 @@ const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   heading: { text: 'Heading', level: 2 },
   button: { text: 'Button' },
   image: { src: 'https://placehold.co/200x120', alt: '' },
+  link: { text: 'Link', linkTo: '' },
 }
 
 export function canHaveChildren(type: NodeType): boolean {

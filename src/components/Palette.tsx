@@ -8,6 +8,7 @@ const BLOCKS: { type: NodeType; label: string }[] = [
   { type: 'text', label: '¶  Text' },
   { type: 'button', label: '⬜  Button' },
   { type: 'image', label: '\u{1f5bc}  Image' },
+  { type: 'link', label: '🔗  Link' },
 ]
 
 export function Palette() {

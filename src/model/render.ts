@@ -1,5 +1,10 @@
 import type { CSSProperties } from 'react'
 import type { EditorDocument, EditorNode } from './types'
+import type { Project } from './project'
+
+export interface RenderContext {
+  resolveLink?: (pageId: string) => string
+}
 
 const ALIGN_MAP: Record<string, string> = {
   start: 'flex-start',
@@ -21,6 +26,12 @@ export const buttonBaseStyle: CSSProperties = {
 export const imageBaseStyle: CSSProperties = {
   maxWidth: '100%',
   display: 'block',
+}
+
+export const linkBaseStyle: CSSProperties = {
+  color: '#4f46e5',
+  textDecoration: 'none',
+  cursor: 'pointer',
 }
 
 export function styleFromProps(p: Record<string, unknown>): CSSProperties {
@@ -77,7 +88,7 @@ export interface NodeView {
   attrs?: Record<string, string>
 }
 
-export function describeNode(node: EditorNode): NodeView {
+export function describeNode(node: EditorNode, ctx?: RenderContext): NodeView {
   const p = node.props
   switch (node.type) {
     case 'root':
@@ -109,6 +120,17 @@ export function describeNode(node: EditorNode): NodeView {
         attrs: { src: (p.src as string) ?? '', alt: (p.alt as string) ?? '' },
         style: { ...imageBaseStyle, ...styleFromProps(p) },
       }
+    case 'link': {
+      const target = p.linkTo as string
+      const href =
+        target && ctx?.resolveLink ? ctx.resolveLink(target) : target ? '#' : '#'
+      return {
+        tag: 'a',
+        style: { ...linkBaseStyle, ...styleFromProps(p) },
+        text: (p.text as string) ?? '',
+        attrs: { href },
+      }
+    }
     default:
       return { tag: 'div', style: {} }
   }
@@ -150,39 +172,83 @@ function escapeAttr(value: string): string {
   return escapeHtml(value).replace(/"/g, '&quot;')
 }
 
-function serializeNode(doc: EditorDocument, id: string, indent: number): string {
+function attrString(attrs?: Record<string, string>): string {
+  return Object.entries(attrs ?? {})
+    .filter(([, v]) => v)
+    .map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
+    .join('')
+}
+
+class StyleSheet {
+  private classes = new Map<string, string>()
+
+  classFor(style: CSSProperties): string | null {
+    const css = cssString(style)
+    if (!css) return null
+    let name = this.classes.get(css)
+    if (!name) {
+      name = `c${this.classes.size + 1}`
+      this.classes.set(css, name)
+    }
+    return name
+  }
+
+  toCss(indent: string): string {
+    return [...this.classes.entries()]
+      .map(([css, name]) => `${indent}.${name} { ${css} }`)
+      .join('\n')
+  }
+}
+
+function serializeNode(
+  doc: EditorDocument,
+  id: string,
+  indent: number,
+  sheet: StyleSheet,
+  ctx?: RenderContext,
+): string {
   const node = doc.nodes[id]
   if (!node) return ''
 
-  const view = describeNode(node)
+  const view = describeNode(node, ctx)
   const pad = '  '.repeat(indent)
-  const css = cssString(view.style)
-  const styleAttr = css ? ` style="${css}"` : ''
+  const className = sheet.classFor(view.style)
+  const classAttr = className ? ` class="${className}"` : ''
+  const attrs = attrString(view.attrs)
 
   if (view.selfClosing) {
-    const attrs = Object.entries(view.attrs ?? {})
-      .filter(([, v]) => v)
-      .map(([k, v]) => ` ${k}="${escapeAttr(v)}"`)
-      .join('')
-    return `${pad}<${view.tag}${attrs}${styleAttr} />`
+    return `${pad}<${view.tag}${attrs}${classAttr} />`
   }
 
   if (node.children.length === 0 && view.text !== undefined) {
-    return `${pad}<${view.tag}${styleAttr}>${escapeHtml(view.text)}</${view.tag}>`
+    return `${pad}<${view.tag}${attrs}${classAttr}>${escapeHtml(view.text)}</${view.tag}>`
   }
 
   const inner = node.children
-    .map((childId) => serializeNode(doc, childId, indent + 1))
+    .map((childId) => serializeNode(doc, childId, indent + 1, sheet, ctx))
     .join('\n')
   const body = inner ? `\n${inner}\n${pad}` : ''
-  return `${pad}<${view.tag}${styleAttr}>${body}</${view.tag}>`
+  return `${pad}<${view.tag}${attrs}${classAttr}>${body}</${view.tag}>`
 }
 
-export function toHtml(doc: EditorDocument): string {
-  return serializeNode(doc, doc.root, 0)
+function renderDoc(
+  doc: EditorDocument,
+  indent: number,
+  ctx?: RenderContext,
+): { body: string; sheet: StyleSheet } {
+  const sheet = new StyleSheet()
+  const body = serializeNode(doc, doc.root, indent, sheet, ctx)
+  return { body, sheet }
 }
 
-export function toHtmlDocument(doc: EditorDocument): string {
+export function toHtml(doc: EditorDocument, ctx?: RenderContext): string {
+  const { body, sheet } = renderDoc(doc, 0, ctx)
+  const css = sheet.toCss('')
+  return css ? `<style>\n${css}\n</style>\n${body}` : body
+}
+
+export function toHtmlDocument(doc: EditorDocument, ctx?: RenderContext): string {
+  const { body, sheet } = renderDoc(doc, 0, ctx)
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -192,11 +258,48 @@ export function toHtmlDocument(doc: EditorDocument): string {
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+${sheet.toCss('  ')}
 </style>
 </head>
 <body>
-${toHtml(doc)}
+${body}
 </body>
 </html>
 `
+}
+
+function slug(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'page'
+  )
+}
+
+export function buildSite(project: Project): { name: string; content: string }[] {
+  const used = new Set<string>()
+  const fileFor = new Map<string, string>()
+
+  for (const page of project.pages) {
+    const base = slug(page.name)
+    let file = `${base}.html`
+    let i = 2
+    while (used.has(file)) {
+      file = `${base}-${i}.html`
+      i += 1
+    }
+    used.add(file)
+    fileFor.set(page.id, file)
+  }
+
+  const ctx: RenderContext = {
+    resolveLink: (id) => fileFor.get(id) ?? '#',
+  }
+
+  return project.pages.map((page) => ({
+    name: fileFor.get(page.id)!,
+    content: toHtmlDocument(page.doc, ctx),
+  }))
 }

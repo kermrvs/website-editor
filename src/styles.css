@@ -82,6 +82,77 @@
   min-height: 0;
 }
 
+.we-pages {
+  padding: 12px;
+  border-bottom: 1px solid var(--we-border);
+}
+
+.we-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.we-page:hover {
+  background: #eef2ff;
+}
+
+.we-page.selected {
+  background: var(--we-accent);
+  color: #fff;
+}
+
+.we-page-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-page-del {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 4px;
+  opacity: 0.7;
+}
+
+.we-page-del:hover {
+  background: rgba(0, 0, 0, 0.15);
+  opacity: 1;
+}
+
+.we-page-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--we-accent);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.we-page-add {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px dashed var(--we-border);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.we-page-add:hover {
+  border-color: var(--we-accent);
+  color: var(--we-accent);
+}
+
 .we-palette {
   padding: 12px;
   border-bottom: 1px solid var(--we-border);

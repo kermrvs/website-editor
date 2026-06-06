@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import type { EditorDocument, NodeId, NodeType } from './model/types'
+import type { Project } from './model/project'
+import { createEmptyProject, createPage, currentDoc } from './model/project'
 import {
   canHaveChildren,
-  createEmptyDocument,
   createNode,
   findParentId,
   makeId,
@@ -16,6 +17,7 @@ export interface DropTarget {
 }
 
 interface EditorState {
+  project: Project
   doc: EditorDocument
   selectedId: NodeId | null
   mode: EditorMode
@@ -24,7 +26,12 @@ interface EditorState {
   draggingType: NodeType | null
   dropTarget: DropTarget | null
 
-  setDoc: (doc: EditorDocument) => void
+  setProject: (project: Project) => void
+  addPage: () => void
+  removePage: (id: string) => void
+  renamePage: (id: string, name: string) => void
+  selectPage: (id: string) => void
+
   setMode: (mode: EditorMode) => void
   select: (id: NodeId | null) => void
 
@@ -40,168 +47,234 @@ interface EditorState {
   endDrag: () => void
 }
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  doc: createEmptyDocument(),
-  selectedId: null,
-  mode: 'visual',
+export const useEditorStore = create<EditorState>((set, get) => {
+  const initialProject = createEmptyProject()
 
-  draggingId: null,
-  draggingType: null,
-  dropTarget: null,
-
-  setDoc: (doc) =>
-    set((s) => ({
+  const commit = (doc: EditorDocument, extra: Partial<EditorState> = {}) =>
+    set((state) => ({
       doc,
-      selectedId: s.selectedId && doc.nodes[s.selectedId] ? s.selectedId : null,
-    })),
-  setMode: (mode) => set({ mode }),
-  select: (id) => set({ selectedId: id }),
-
-  addNode: (type, parentId, index) => {
-    const { doc } = get()
-    const parent = doc.nodes[parentId]
-    if (!parent || !canHaveChildren(parent.type)) return
-
-    const node = createNode(type)
-    const children = [...parent.children]
-    const at =
-      index === undefined
-        ? children.length
-        : Math.max(0, Math.min(index, children.length))
-    children.splice(at, 0, node.id)
-
-    set({
-      doc: {
-        ...doc,
-        nodes: {
-          ...doc.nodes,
-          [node.id]: node,
-          [parentId]: { ...parent, children },
-        },
+      project: {
+        ...state.project,
+        pages: state.project.pages.map((p) =>
+          p.id === state.project.currentPageId ? { ...p, doc } : p,
+        ),
       },
-      selectedId: node.id,
-    })
-  },
+      ...extra,
+    }))
 
-  updateProps: (id, props) => {
-    const { doc } = get()
-    const node = doc.nodes[id]
-    if (!node) return
-    set({
-      doc: {
+  return {
+    project: initialProject,
+    doc: currentDoc(initialProject),
+    selectedId: null,
+    mode: 'visual',
+
+    draggingId: null,
+    draggingType: null,
+    dropTarget: null,
+
+    setProject: (project) =>
+      set((state) => {
+        const doc = currentDoc(project)
+        const selectedId =
+          state.selectedId && doc.nodes[state.selectedId]
+            ? state.selectedId
+            : null
+        return { project, doc, selectedId }
+      }),
+
+    addPage: () =>
+      set((state) => {
+        const page = createPage(`Page ${state.project.pages.length + 1}`)
+        return {
+          project: {
+            pages: [...state.project.pages, page],
+            currentPageId: page.id,
+          },
+          doc: page.doc,
+          selectedId: null,
+        }
+      }),
+
+    removePage: (id) =>
+      set((state) => {
+        if (state.project.pages.length <= 1) return state
+        const pages = state.project.pages.filter((p) => p.id !== id)
+        const currentPageId =
+          state.project.currentPageId === id
+            ? pages[0].id
+            : state.project.currentPageId
+        const project = { pages, currentPageId }
+        return { project, doc: currentDoc(project), selectedId: null }
+      }),
+
+    renamePage: (id, name) =>
+      set((state) => ({
+        project: {
+          ...state.project,
+          pages: state.project.pages.map((p) =>
+            p.id === id ? { ...p, name } : p,
+          ),
+        },
+      })),
+
+    selectPage: (id) =>
+      set((state) => {
+        const page = state.project.pages.find((p) => p.id === id)
+        if (!page) return state
+        return {
+          project: { ...state.project, currentPageId: id },
+          doc: page.doc,
+          selectedId: null,
+        }
+      }),
+
+    setMode: (mode) => set({ mode }),
+    select: (id) => set({ selectedId: id }),
+
+    addNode: (type, parentId, index) => {
+      const { doc } = get()
+      const parent = doc.nodes[parentId]
+      if (!parent || !canHaveChildren(parent.type)) return
+
+      const node = createNode(type)
+      const children = [...parent.children]
+      const at =
+        index === undefined
+          ? children.length
+          : Math.max(0, Math.min(index, children.length))
+      children.splice(at, 0, node.id)
+
+      commit(
+        {
+          ...doc,
+          nodes: {
+            ...doc.nodes,
+            [node.id]: node,
+            [parentId]: { ...parent, children },
+          },
+        },
+        { selectedId: node.id },
+      )
+    },
+
+    updateProps: (id, props) => {
+      const { doc } = get()
+      const node = doc.nodes[id]
+      if (!node) return
+      commit({
         ...doc,
         nodes: {
           ...doc.nodes,
           [id]: { ...node, props: { ...node.props, ...props } },
         },
-      },
-    })
-  },
+      })
+    },
 
-  removeNode: (id) => {
-    const { doc, selectedId } = get()
-    if (id === doc.root) return
+    removeNode: (id) => {
+      const { doc, selectedId } = get()
+      if (id === doc.root) return
 
-    const toDelete = new Set<string>()
-    const stack = [id]
-    while (stack.length) {
-      const current = stack.pop()!
-      toDelete.add(current)
-      const node = doc.nodes[current]
-      if (node) stack.push(...node.children)
-    }
-
-    const parentId = findParentId(doc, id)
-    const nodes = { ...doc.nodes }
-    for (const del of toDelete) delete nodes[del]
-    if (parentId && nodes[parentId]) {
-      nodes[parentId] = {
-        ...nodes[parentId],
-        children: nodes[parentId].children.filter((c) => c !== id),
+      const toDelete = new Set<string>()
+      const stack = [id]
+      while (stack.length) {
+        const current = stack.pop()!
+        toDelete.add(current)
+        const n = doc.nodes[current]
+        if (n) stack.push(...n.children)
       }
-    }
 
-    set({
-      doc: { ...doc, nodes },
-      selectedId: selectedId && toDelete.has(selectedId) ? null : selectedId,
-    })
-  },
-
-  duplicateNode: (id) => {
-    const { doc } = get()
-    if (id === doc.root) return
-    const parentId = findParentId(doc, id)
-    if (!parentId) return
-
-    const nodes = { ...doc.nodes }
-    const clone = (srcId: string): string => {
-      const src = doc.nodes[srcId]
-      const copyId = makeId(src.type)
-      nodes[copyId] = {
-        id: copyId,
-        type: src.type,
-        props: { ...src.props },
-        children: src.children.map(clone),
+      const parentId = findParentId(doc, id)
+      const nodes = { ...doc.nodes }
+      for (const del of toDelete) delete nodes[del]
+      if (parentId && nodes[parentId]) {
+        nodes[parentId] = {
+          ...nodes[parentId],
+          children: nodes[parentId].children.filter((c) => c !== id),
+        }
       }
-      return copyId
-    }
 
-    const newId = clone(id)
-    const parent = nodes[parentId]
-    const index = parent.children.indexOf(id)
-    const children = [...parent.children]
-    children.splice(index + 1, 0, newId)
-    nodes[parentId] = { ...parent, children }
+      commit(
+        { ...doc, nodes },
+        { selectedId: selectedId && toDelete.has(selectedId) ? null : selectedId },
+      )
+    },
 
-    set({ doc: { ...doc, nodes }, selectedId: newId })
-  },
+    duplicateNode: (id) => {
+      const { doc } = get()
+      if (id === doc.root) return
+      const parentId = findParentId(doc, id)
+      if (!parentId) return
 
-  moveNode: (id, parentId, index) => {
-    const { doc } = get()
-    if (id === doc.root) return
-
-    const banned = new Set<string>()
-    const stack = [id]
-    while (stack.length) {
-      const current = stack.pop()!
-      banned.add(current)
-      const n = doc.nodes[current]
-      if (n) stack.push(...n.children)
-    }
-    if (banned.has(parentId)) return
-
-    const target = doc.nodes[parentId]
-    if (!target || !canHaveChildren(target.type)) return
-
-    const oldParentId = findParentId(doc, id)
-    if (!oldParentId) return
-
-    const nodes = { ...doc.nodes }
-
-    if (oldParentId === parentId) {
-      const oldIndex = target.children.indexOf(id)
-      const children = target.children.filter((c) => c !== id)
-      let at = oldIndex < index ? index - 1 : index
-      at = Math.max(0, Math.min(at, children.length))
-      children.splice(at, 0, id)
-      nodes[parentId] = { ...target, children }
-    } else {
-      const oldParent = nodes[oldParentId]
-      nodes[oldParentId] = {
-        ...oldParent,
-        children: oldParent.children.filter((c) => c !== id),
+      const nodes = { ...doc.nodes }
+      const clone = (srcId: string): string => {
+        const src = doc.nodes[srcId]
+        const copyId = makeId(src.type)
+        nodes[copyId] = {
+          id: copyId,
+          type: src.type,
+          props: { ...src.props },
+          children: src.children.map(clone),
+        }
+        return copyId
       }
-      const children = [...target.children]
-      const at = Math.max(0, Math.min(index, children.length))
-      children.splice(at, 0, id)
-      nodes[parentId] = { ...target, children }
-    }
 
-    set({ doc: { ...doc, nodes }, selectedId: id })
-  },
+      const newId = clone(id)
+      const parent = nodes[parentId]
+      const index = parent.children.indexOf(id)
+      const children = [...parent.children]
+      children.splice(index + 1, 0, newId)
+      nodes[parentId] = { ...parent, children }
 
-  startDragExisting: (id) => set({ draggingId: id, draggingType: null }),
-  startDragNew: (type) => set({ draggingType: type, draggingId: null }),
-  setDropTarget: (target) => set({ dropTarget: target }),
-  endDrag: () => set({ draggingId: null, draggingType: null, dropTarget: null }),
-}))
+      commit({ ...doc, nodes }, { selectedId: newId })
+    },
+
+    moveNode: (id, parentId, index) => {
+      const { doc } = get()
+      if (id === doc.root) return
+
+      const banned = new Set<string>()
+      const stack = [id]
+      while (stack.length) {
+        const current = stack.pop()!
+        banned.add(current)
+        const n = doc.nodes[current]
+        if (n) stack.push(...n.children)
+      }
+      if (banned.has(parentId)) return
+
+      const target = doc.nodes[parentId]
+      if (!target || !canHaveChildren(target.type)) return
+
+      const oldParentId = findParentId(doc, id)
+      if (!oldParentId) return
+
+      const nodes = { ...doc.nodes }
+
+      if (oldParentId === parentId) {
+        const oldIndex = target.children.indexOf(id)
+        const children = target.children.filter((c) => c !== id)
+        let at = oldIndex < index ? index - 1 : index
+        at = Math.max(0, Math.min(at, children.length))
+        children.splice(at, 0, id)
+        nodes[parentId] = { ...target, children }
+      } else {
+        const oldParent = nodes[oldParentId]
+        nodes[oldParentId] = {
+          ...oldParent,
+          children: oldParent.children.filter((c) => c !== id),
+        }
+        const children = [...target.children]
+        const at = Math.max(0, Math.min(index, children.length))
+        children.splice(at, 0, id)
+        nodes[parentId] = { ...target, children }
+      }
+
+      commit({ ...doc, nodes }, { selectedId: id })
+    },
+
+    startDragExisting: (id) => set({ draggingId: id, draggingType: null }),
+    startDragNew: (type) => set({ draggingType: type, draggingId: null }),
+    setDropTarget: (target) => set({ dropTarget: target }),
+    endDrag: () => set({ draggingId: null, draggingType: null, dropTarget: null }),
+  }
+})

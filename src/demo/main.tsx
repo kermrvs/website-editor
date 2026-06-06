@@ -1,11 +1,11 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { WebEditor, createEmptyDocument } from '../index'
-import type { EditorDocument } from '../index'
+import { WebEditor, createEmptyProject } from '../index'
+import type { Project } from '../index'
 
 function Demo() {
-  const [doc, setDoc] = useState<EditorDocument>(createEmptyDocument())
-  return <WebEditor value={doc} onChange={setDoc} />
+  const [project, setProject] = useState<Project>(createEmptyProject())
+  return <WebEditor value={project} onChange={setProject} />
 }
 
 createRoot(document.getElementById('root')!).render(

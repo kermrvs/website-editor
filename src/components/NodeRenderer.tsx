@@ -5,6 +5,7 @@ import {
   buttonBaseStyle,
   imageBaseStyle,
   layoutStyle,
+  linkBaseStyle,
   styleFromProps,
 } from '../model/render'
 import { useEditorStore } from '../store'
@@ -215,6 +216,23 @@ export function NodeRenderer({ id }: Props) {
           alt={p.alt as string}
           style={{ ...imageBaseStyle, ...base, ...selectionStyle }}
         />
+      )
+
+    case 'link':
+      return (
+        <a
+          data-node-id={id}
+          draggable
+          onClick={(e) => {
+            e.preventDefault()
+            onClick(e)
+          }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          style={{ ...linkBaseStyle, ...base, ...selectionStyle }}
+        >
+          {p.text as string}
+        </a>
       )
 
     default:

@@ -7,6 +7,7 @@ export type NodeType =
   | 'heading'
   | 'button'
   | 'image'
+  | 'link'
 
 export interface EditorNode {
   id: NodeId

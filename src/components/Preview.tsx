@@ -5,12 +5,29 @@ import { useEditorStore } from '../store'
 
 function PreviewNode({ id }: { id: NodeId }) {
   const node = useEditorStore((s) => s.doc.nodes[id])
+  const selectPage = useEditorStore((s) => s.selectPage)
   if (!node) return null
 
   const view = describeNode(node)
 
   if (view.selfClosing) {
     return <img style={view.style} src={view.attrs?.src} alt={view.attrs?.alt} />
+  }
+
+  if (node.type === 'link') {
+    const target = node.props.linkTo as string
+    return (
+      <a
+        href="#"
+        style={view.style}
+        onClick={(e) => {
+          e.preventDefault()
+          if (target) selectPage(target)
+        }}
+      >
+        {view.text}
+      </a>
+    )
   }
 
   const Tag = view.tag as keyof JSX.IntrinsicElements

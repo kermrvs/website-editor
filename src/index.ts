@@ -2,7 +2,10 @@ export { WebEditor } from './components/WebEditor'
 export type { WebEditorProps } from './components/WebEditor'
 
 export { createEmptyDocument, createNode } from './model/document'
-export { toHtml, toHtmlDocument } from './model/render'
+export { createEmptyProject, createPage } from './model/project'
+export type { Project, Page } from './model/project'
+export { toHtml, toHtmlDocument, buildSite } from './model/render'
+export { createZip } from './model/zip'
 export type {
   EditorDocument,
   EditorNode,
