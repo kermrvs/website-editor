@@ -36,6 +36,7 @@ const GROUPS: Group[] = [
     title: 'Media',
     blocks: [
       { type: 'image', label: '\u{1f5bc}  Image' },
+      { type: 'icon', label: '★  Icon' },
       { type: 'video', label: '▶  Video' },
       { type: 'embed', label: '⧉  Embed' },
     ],

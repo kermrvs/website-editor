@@ -1,5 +1,6 @@
 export { WebEditor } from './components/WebEditor'
 export type { WebEditorProps } from './components/WebEditor'
+export type { WebEditorConfig } from './config'
 
 export { createEmptyDocument, createNode } from './model/document'
 export { createEmptyProject, createPage } from './model/project'

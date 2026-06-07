@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEditorStore } from '../store'
+import { useConfig } from '../config'
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -185,6 +186,7 @@ export function Inspector() {
   const updateProps = useEditorStore((s) => s.updateProps)
   const removeNode = useEditorStore((s) => s.removeNode)
   const duplicateNode = useEditorStore((s) => s.duplicateNode)
+  const config = useConfig()
 
   if (!node) {
     return (
@@ -261,6 +263,44 @@ export function Inspector() {
         <Row label="Source URL">
           <input value={str(p.src)} onChange={(e) => set({ src: e.target.value })} />
         </Row>
+      )}
+
+      {node.type === 'icon' && (
+        <>
+          <Row label="Icon">
+            <select
+              value={str(p.icon)}
+              onChange={(e) => set({ icon: e.target.value })}
+            >
+              <option value="">— choose —</option>
+              {Object.keys(config.icons ?? {}).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </Row>
+          {Object.keys(config.icons ?? {}).length === 0 && (
+            <div className="we-palette-hint">
+              No icons configured. Pass them via config.icons
+            </div>
+          )}
+          <Row label="Size">
+            <input
+              type="number"
+              min={1}
+              value={num(p.size, 24)}
+              onChange={(e) => set({ size: Number(e.target.value) })}
+            />
+          </Row>
+          <Row label="Color">
+            <input
+              type="color"
+              value={str(p.color, '#111827')}
+              onChange={(e) => set({ color: e.target.value })}
+            />
+          </Row>
+        </>
       )}
 
       {node.type === 'button' && (

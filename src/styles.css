@@ -301,6 +301,33 @@
   outline-offset: -1px;
 }
 
+.we-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.we-icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.we-icon-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 24px;
+  min-height: 24px;
+  border: 1px dashed #d1d5db;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
 .we-labeled-field {
   display: flex;
   flex-direction: column;
