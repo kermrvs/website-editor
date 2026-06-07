@@ -27,7 +27,11 @@ const icons = {
 function Demo() {
   const [project, setProject] = useState<Project>(createEmptyProject())
   return (
-    <WebEditor value={project} onChange={setProject} config={{ icons }} />
+    <WebEditor
+      value={project}
+      onChange={setProject}
+      config={{ icons, storageKey: 'web-editor-demo' }}
+    />
   )
 }
 

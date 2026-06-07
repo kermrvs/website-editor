@@ -60,6 +60,60 @@ const Logo = () => <svg viewBox="0 0 24 24">{/* ... */}</svg>
 const icons = { logo: Logo }
 ```
 
+## Saving
+
+- **Autosave** — pass `config.storageKey` and the editor saves the project to
+  `localStorage` on every change and restores it on reload:
+  ```tsx
+  <WebEditor value={project} onChange={setProject}
+    config={{ storageKey: 'my-site' }} />
+  ```
+- **Export JSON / Import JSON** — toolbar buttons to download the project as a
+  `.json` file and load it back. The project is plain JSON, so you can store it
+  anywhere (your own backend, a database) via `onChange`.
+
+### Saving to your own backend
+
+The editor never talks to your server directly. It hands you the whole project
+as JSON through `onChange` — load it on mount via `value`, persist it on change:
+
+```tsx
+import { WebEditor, createEmptyProject } from 'web-editor'
+import 'web-editor/styles.css'
+import { useEffect, useRef, useState } from 'react'
+
+function App() {
+  const [project, setProject] = useState(createEmptyProject())
+
+  // load from your backend on mount
+  useEffect(() => {
+    fetch('/api/site')
+      .then((r) => r.json())
+      .then((saved) => saved?.pages && setProject(saved))
+  }, [])
+
+  // save to your backend on change (debounced)
+  const timer = useRef<number>(0)
+  const handleChange = (next) => {
+    setProject(next)
+    clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      fetch('/api/site', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+    }, 800)
+  }
+
+  return <WebEditor value={project} onChange={handleChange} />
+}
+```
+
+The project is plain JSON — store it as text/jsonb. Debounce the request so you
+don't hit the server on every keystroke. You can combine this with
+`config.storageKey` (localStorage as a fast draft cache) if you like.
+
 ## Exporting
 
 Export is available from the toolbar (**Export HTML** for the current page,

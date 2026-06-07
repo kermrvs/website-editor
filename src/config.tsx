@@ -3,6 +3,7 @@ import type { ComponentType } from 'react'
 
 export interface WebEditorConfig {
   icons?: Record<string, ComponentType>
+  storageKey?: string
 }
 
 const ConfigContext = createContext<WebEditorConfig>({})

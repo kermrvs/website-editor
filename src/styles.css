@@ -53,6 +53,18 @@
   opacity: 0.9;
 }
 
+.we-secondary-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--we-border);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.we-secondary-btn:hover {
+  border-color: var(--we-accent);
+}
+
 .we-mode-switch button {
   padding: 4px 12px;
   border: 1px solid var(--we-border);

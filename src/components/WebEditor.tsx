@@ -1,4 +1,4 @@
-import { createElement, useEffect } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Project } from '../model/project'
 import { buildSite, toHtmlDocument } from '../model/render'
@@ -43,6 +43,52 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
   useEffect(() => {
     onChange?.(project)
   }, [project, onChange])
+
+  const storageKey = config?.storageKey
+
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return
+    try {
+      const saved = window.localStorage.getItem(storageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && Array.isArray(parsed.pages)) setProject(parsed)
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+  }, [storageKey, setProject])
+
+  const saveTimer = useRef<number>(0)
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return
+    window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(project))
+      } catch {
+        // ignore quota errors
+      }
+    }, 500)
+  }, [project, storageKey])
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const importJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string)
+        if (parsed && Array.isArray(parsed.pages)) setProject(parsed)
+      } catch {
+        // ignore invalid file
+      }
+    }
+    reader.readAsText(file)
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -92,6 +138,13 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
     download(createZip(buildSite(project, { renderIcon })), 'site.zip')
   }
 
+  const exportJson = () => {
+    download(
+      new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' }),
+      'project.json',
+    )
+  }
+
   return (
     <ConfigProvider value={config ?? {}}>
     <div className="we-editor">
@@ -139,6 +192,22 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
           <button className="we-export" onClick={exportSite}>
             Export site
           </button>
+          <button className="we-secondary-btn" onClick={exportJson}>
+            Export JSON
+          </button>
+          <button
+            className="we-secondary-btn"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            onChange={importJson}
+            style={{ display: 'none' }}
+          />
         </div>
       </div>
 
