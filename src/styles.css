@@ -282,6 +282,15 @@
   outline-offset: -1px;
 }
 
+.we-divider {
+  padding: 8px 0;
+  cursor: grab;
+}
+
+.we-divider > div {
+  width: 100%;
+}
+
 .we-spacer {
   display: flex;
   align-items: center;

@@ -214,21 +214,23 @@ export function NodeRenderer({ id }: Props) {
 
     case 'divider':
       return (
-        <hr
+        <div
           data-node-id={id}
           draggable
           onClick={onClick}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
-          style={{
-            border: 'none',
-            borderTop: `${(p.lineThickness as number) ?? 1}px solid ${
-              (p.lineColor as string) ?? '#e5e7eb'
-            }`,
-            ...base,
-            ...selectionStyle,
-          }}
-        />
+          className="we-divider"
+          style={{ ...base, ...selectionStyle }}
+        >
+          <div
+            style={{
+              borderTop: `${(p.lineThickness as number) ?? 1}px solid ${
+                (p.lineColor as string) ?? '#e5e7eb'
+              }`,
+            }}
+          />
+        </div>
       )
 
     case 'spacer':
