@@ -85,6 +85,7 @@
   background: var(--we-bg);
   border-right: 1px solid var(--we-border);
   min-height: 0;
+  overflow-y: auto;
 }
 
 .we-pages {
@@ -164,10 +165,7 @@
 }
 
 .we-layers {
-  flex: 1;
   padding: 12px;
-  overflow-y: auto;
-  min-height: 0;
 }
 
 .we-inspector {
@@ -185,6 +183,27 @@
   letter-spacing: 0.06em;
   color: #6b7280;
   margin-bottom: 10px;
+}
+
+.we-block-group {
+  margin-bottom: 10px;
+}
+
+.we-group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 2px;
+  margin-bottom: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
 }
 
 .we-palette-item {
@@ -280,6 +299,19 @@
 .we-box {
   outline: 1px dashed #e5e7eb;
   outline-offset: -1px;
+}
+
+.we-labeled-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: grab;
+}
+
+.we-field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .we-divider {

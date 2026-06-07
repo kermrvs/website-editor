@@ -1,7 +1,10 @@
-import { useEffect } from 'react'
+import { createElement, useEffect } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import type { Project } from '../model/project'
 import { buildSite, toHtmlDocument } from '../model/render'
 import { createZip } from '../model/zip'
+import { ConfigProvider } from '../config'
+import type { WebEditorConfig } from '../config'
 import { useEditorStore } from '../store'
 import { NodeRenderer } from './NodeRenderer'
 import { Preview } from './Preview'
@@ -15,11 +18,12 @@ import '../styles.css'
 export interface WebEditorProps {
   value?: Project
   onChange?: (project: Project) => void
+  config?: WebEditorConfig
 }
 
 const MODES = ['visual', 'preview', 'code'] as const
 
-export function WebEditor({ value, onChange }: WebEditorProps) {
+export function WebEditor({ value, onChange, config }: WebEditorProps) {
   const project = useEditorStore((s) => s.project)
   const doc = useEditorStore((s) => s.doc)
   const setProject = useEditorStore((s) => s.setProject)
@@ -68,17 +72,26 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
     URL.revokeObjectURL(url)
   }
 
+  const renderIcon = (name: string): string | null => {
+    const Component = config?.icons?.[name]
+    return Component ? renderToStaticMarkup(createElement(Component)) : null
+  }
+
   const exportHtml = () => {
     const current = project.pages.find((p) => p.id === project.currentPageId)
     const name = (current?.name || 'page').replace(/\s+/g, '-').toLowerCase()
-    download(new Blob([toHtmlDocument(doc)], { type: 'text/html' }), `${name}.html`)
+    download(
+      new Blob([toHtmlDocument(doc, { renderIcon })], { type: 'text/html' }),
+      `${name}.html`,
+    )
   }
 
   const exportSite = () => {
-    download(createZip(buildSite(project)), 'site.zip')
+    download(createZip(buildSite(project, { renderIcon })), 'site.zip')
   }
 
   return (
+    <ConfigProvider value={config ?? {}}>
     <div className="we-editor">
       <div className="we-toolbar">
         <strong className="we-brand">web-editor</strong>
@@ -126,7 +139,9 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
             </div>
           )}
           {mode === 'code' && (
-            <pre className="we-code-preview">{toHtmlDocument(doc)}</pre>
+            <pre className="we-code-preview">
+              {toHtmlDocument(doc, { renderIcon })}
+            </pre>
           )}
         </div>
 
@@ -135,5 +150,6 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
 
       <FormatBar />
     </div>
+    </ConfigProvider>
   )
 }

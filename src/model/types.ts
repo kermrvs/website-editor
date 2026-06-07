@@ -12,6 +12,13 @@ export type NodeType =
   | 'spacer'
   | 'video'
   | 'embed'
+  | 'input'
+  | 'textarea'
+  | 'form'
+  | 'select'
+  | 'checkbox'
+  | 'radio'
+  | 'icon'
 
 export interface EditorNode {
   id: NodeId

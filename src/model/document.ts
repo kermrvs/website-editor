@@ -19,10 +19,17 @@ const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   spacer: { height: 40 },
   video: { src: '' },
   embed: { src: '', height: 400 },
+  input: { placeholder: 'Enter text…', inputType: 'text' },
+  textarea: { placeholder: 'Your message…', rows: 4 },
+  form: { layout: 'column', gap: 12, action: '', method: 'post' },
+  select: { options: ['Option 1', 'Option 2'], placeholder: '' },
+  checkbox: { label: 'Check me' },
+  radio: { options: ['Option 1', 'Option 2'] },
+  icon: { icon: '', size: 24 },
 }
 
 export function canHaveChildren(type: NodeType): boolean {
-  return type === 'root' || type === 'box'
+  return type === 'root' || type === 'box' || type === 'form'
 }
 
 export function createNode(type: NodeType): EditorNode {

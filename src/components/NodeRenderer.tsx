@@ -4,12 +4,15 @@ import type { NodeId } from '../model/types'
 import {
   buttonBaseStyle,
   imageBaseStyle,
+  inputBaseStyle,
   layoutStyle,
   linkBaseStyle,
   styleFromProps,
 } from '../model/render'
 import { useEditorStore } from '../store'
 import { EditableText } from './EditableText'
+import { FormControl } from './FormControl'
+import { Icon } from './Icon'
 
 interface Props {
   id: NodeId
@@ -138,7 +141,8 @@ export function NodeRenderer({ id }: Props) {
         </div>
       )
 
-    case 'box': {
+    case 'box':
+    case 'form': {
       const horizontal = layout === 'row'
       return (
         <div
@@ -264,6 +268,108 @@ export function NodeRenderer({ id }: Props) {
           {p.src ? <small>{p.src as string}</small> : <small>no source set</small>}
         </div>
       )
+
+    case 'input':
+    case 'textarea': {
+      const labelText = p.label as string
+      const fieldStyle = labelText
+        ? { ...inputBaseStyle }
+        : { ...inputBaseStyle, ...base, ...selectionStyle }
+      const field =
+        node.type === 'input' ? (
+          <input
+            readOnly
+            type={(p.inputType as string) ?? 'text'}
+            placeholder={p.placeholder as string}
+            style={fieldStyle}
+            {...(labelText
+              ? {}
+              : {
+                  'data-node-id': id,
+                  draggable: true,
+                  onClick,
+                  onDragStart,
+                  onDragEnd,
+                })}
+          />
+        ) : (
+          <textarea
+            readOnly
+            rows={(p.rows as number) ?? 4}
+            placeholder={p.placeholder as string}
+            style={{
+              ...fieldStyle,
+              resize: (p.resize as React.CSSProperties['resize']) ?? 'vertical',
+            }}
+            {...(labelText
+              ? {}
+              : {
+                  'data-node-id': id,
+                  draggable: true,
+                  onClick,
+                  onDragStart,
+                  onDragEnd,
+                })}
+          />
+        )
+
+      if (!labelText) return field
+
+      return (
+        <label
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="we-labeled-field"
+          style={{ ...base, ...selectionStyle }}
+        >
+          <span className="we-field-label">{labelText}</span>
+          {field}
+        </label>
+      )
+    }
+
+    case 'icon':
+      return (
+        <Icon
+          name={p.icon as string}
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          style={{
+            color: p.color as string,
+            width: p.size as number,
+            height: p.size as number,
+            ...base,
+            ...selectionStyle,
+          }}
+        />
+      )
+
+    case 'select':
+    case 'checkbox':
+    case 'radio': {
+      const labelText = p.label as string
+      const showLabel = node.type === 'select' && labelText
+      return (
+        <div
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className={showLabel ? 'we-labeled-field' : undefined}
+          style={{ ...base, ...selectionStyle }}
+        >
+          {showLabel ? <span className="we-field-label">{labelText}</span> : null}
+          <FormControl node={node} interactive={false} />
+        </div>
+      )
+    }
 
     default:
       return null

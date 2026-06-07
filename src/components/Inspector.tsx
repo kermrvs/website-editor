@@ -222,7 +222,7 @@ export function Inspector() {
     }
   }
 
-  const isContainer = node.type === 'box'
+  const isContainer = node.type === 'box' || node.type === 'form'
   const isText =
     node.type === 'heading' ||
     node.type === 'text' ||
@@ -261,6 +261,41 @@ export function Inspector() {
         <Row label="Source URL">
           <input value={str(p.src)} onChange={(e) => set({ src: e.target.value })} />
         </Row>
+      )}
+
+      {node.type === 'button' && (
+        <Row label="Button type">
+          <select
+            value={str(p.buttonType, 'button')}
+            onChange={(e) => set({ buttonType: e.target.value })}
+          >
+            <option value="button">Button</option>
+            <option value="submit">Submit</option>
+            <option value="reset">Reset</option>
+          </select>
+        </Row>
+      )}
+
+      {node.type === 'form' && (
+        <>
+          <div className="we-section">Form</div>
+          <Row label="Action URL">
+            <input
+              placeholder="https://formspree.io/f/…"
+              value={str(p.action)}
+              onChange={(e) => set({ action: e.target.value })}
+            />
+          </Row>
+          <Row label="Method">
+            <select
+              value={str(p.method, 'post')}
+              onChange={(e) => set({ method: e.target.value })}
+            >
+              <option value="post">POST</option>
+              <option value="get">GET</option>
+            </select>
+          </Row>
+        </>
       )}
 
       {node.type === 'divider' && (
@@ -321,6 +356,199 @@ export function Inspector() {
               onChange={(e) => set({ height: Number(e.target.value) })}
             />
           </Row>
+        </>
+      )}
+
+      {(node.type === 'select' || node.type === 'radio') && (
+        <>
+          {node.type === 'select' && (
+            <Row label="Label">
+              <input
+                placeholder="(optional)"
+                value={str(p.label)}
+                onChange={(e) => set({ label: e.target.value || undefined })}
+              />
+            </Row>
+          )}
+          <Row label="Name (for forms)">
+            <input
+              placeholder="e.g. choice"
+              value={str(p.name)}
+              onChange={(e) => set({ name: e.target.value || undefined })}
+            />
+          </Row>
+          <Row label="Options (one per line)">
+            <textarea
+              rows={4}
+              value={((p.options as string[]) ?? []).join('\n')}
+              onChange={(e) => set({ options: e.target.value.split('\n') })}
+            />
+          </Row>
+          {node.type === 'select' && (
+            <Row label="Placeholder">
+              <input
+                value={str(p.placeholder)}
+                onChange={(e) => set({ placeholder: e.target.value })}
+              />
+            </Row>
+          )}
+        </>
+      )}
+
+      {node.type === 'checkbox' && (
+        <>
+          <Row label="Label">
+            <input
+              value={str(p.label)}
+              onChange={(e) => set({ label: e.target.value })}
+            />
+          </Row>
+          <Row label="Name (for forms)">
+            <input
+              placeholder="e.g. agree"
+              value={str(p.name)}
+              onChange={(e) => set({ name: e.target.value || undefined })}
+            />
+          </Row>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.checked}
+              onChange={(e) => set({ checked: e.target.checked || undefined })}
+            />
+            <span>Checked by default</span>
+          </label>
+        </>
+      )}
+
+      {(node.type === 'select' ||
+        node.type === 'checkbox' ||
+        node.type === 'radio') && (
+        <>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.required}
+              onChange={(e) => set({ required: e.target.checked || undefined })}
+            />
+            <span>Required</span>
+          </label>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.disabled}
+              onChange={(e) => set({ disabled: e.target.checked || undefined })}
+            />
+            <span>Disabled</span>
+          </label>
+        </>
+      )}
+
+      {(node.type === 'input' || node.type === 'textarea') && (
+        <>
+          <Row label="Label">
+            <input
+              placeholder="(optional)"
+              value={str(p.label)}
+              onChange={(e) => set({ label: e.target.value || undefined })}
+            />
+          </Row>
+          <Row label="Placeholder">
+            <input
+              value={str(p.placeholder)}
+              onChange={(e) => set({ placeholder: e.target.value })}
+            />
+          </Row>
+          <Row label="Name (for forms)">
+            <input
+              placeholder="e.g. email"
+              value={str(p.name)}
+              onChange={(e) => set({ name: e.target.value || undefined })}
+            />
+          </Row>
+        </>
+      )}
+
+      {node.type === 'input' && (
+        <>
+          <Row label="Input type">
+            <select
+              value={str(p.inputType, 'text')}
+              onChange={(e) => set({ inputType: e.target.value })}
+            >
+              <option value="text">Text</option>
+              <option value="email">Email</option>
+              <option value="password">Password</option>
+              <option value="number">Number</option>
+              <option value="tel">Phone</option>
+              <option value="url">URL</option>
+            </select>
+          </Row>
+          <Row label="Min">
+            <input
+              type="number"
+              placeholder="none"
+              value={num(p.min, '')}
+              onChange={(e) =>
+                set({ min: e.target.value === '' ? undefined : Number(e.target.value) })
+              }
+            />
+          </Row>
+          <Row label="Max">
+            <input
+              type="number"
+              placeholder="none"
+              value={num(p.max, '')}
+              onChange={(e) =>
+                set({ max: e.target.value === '' ? undefined : Number(e.target.value) })
+              }
+            />
+          </Row>
+        </>
+      )}
+
+      {node.type === 'textarea' && (
+        <>
+          <Row label="Rows">
+            <input
+              type="number"
+              min={1}
+              value={num(p.rows, 4)}
+              onChange={(e) => set({ rows: Number(e.target.value) })}
+            />
+          </Row>
+          <Row label="Resize">
+            <select
+              value={str(p.resize, 'vertical')}
+              onChange={(e) => set({ resize: e.target.value })}
+            >
+              <option value="vertical">Vertical</option>
+              <option value="none">None</option>
+              <option value="horizontal">Horizontal</option>
+              <option value="both">Both</option>
+            </select>
+          </Row>
+        </>
+      )}
+
+      {(node.type === 'input' || node.type === 'textarea') && (
+        <>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.required}
+              onChange={(e) => set({ required: e.target.checked || undefined })}
+            />
+            <span>Required</span>
+          </label>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.disabled}
+              onChange={(e) => set({ disabled: e.target.checked || undefined })}
+            />
+            <span>Disabled</span>
+          </label>
         </>
       )}
 

@@ -4,6 +4,7 @@ import type { Project } from './project'
 
 export interface RenderContext {
   resolveLink?: (pageId: string) => string
+  renderIcon?: (name: string) => string | null
 }
 
 const ALIGN_MAP: Record<string, string> = {
@@ -32,6 +33,16 @@ export const linkBaseStyle: CSSProperties = {
   color: '#4f46e5',
   textDecoration: 'none',
   cursor: 'pointer',
+}
+
+export const inputBaseStyle: CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  border: '1px solid #d1d5db',
+  borderRadius: 6,
+  fontSize: 14,
+  fontFamily: 'inherit',
+  boxSizing: 'border-box',
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -168,6 +179,18 @@ export interface NodeView {
   hoverStyle?: CSSProperties
 }
 
+export function fieldAttrs(p: Record<string, unknown>): Record<string, string> {
+  const attrs: Record<string, string> = {}
+  if (p.name) attrs.name = p.name as string
+  if (p.required) attrs.required = 'required'
+  if (p.disabled) attrs.disabled = 'disabled'
+  return attrs
+}
+
+export function optionList(p: Record<string, unknown>): string[] {
+  return ((p.options as string[]) ?? []).filter((o) => o.trim() !== '')
+}
+
 export function nodeHref(node: EditorNode, ctx?: RenderContext): string | null {
   const linkTo = node.props.linkTo as string
   const href = node.props.href as string
@@ -193,6 +216,15 @@ function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
       return { tag: 'div', style: { display: 'flex', flexDirection: 'column' } }
     case 'box':
       return { tag: 'div', style: { ...layoutStyle(p), ...styleFromProps(p) } }
+    case 'form':
+      return {
+        tag: 'form',
+        style: { ...layoutStyle(p), ...styleFromProps(p) },
+        attrs: {
+          method: (p.method as string) ?? 'post',
+          ...(p.action ? { action: p.action as string } : {}),
+        },
+      }
     case 'heading':
       return {
         tag: `h${(p.level as number) ?? 2}`,
@@ -213,6 +245,7 @@ function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
         style: { ...buttonBaseStyle, ...styleFromProps(p) },
         text: (p.text as string) ?? '',
         html: p.html as string | undefined,
+        attrs: p.buttonType ? { type: p.buttonType as string } : undefined,
       }
     case 'image':
       return {
@@ -262,6 +295,33 @@ function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
           ...styleFromProps(p),
         },
         attrs: { src: (p.src as string) ?? '' },
+      }
+    case 'input':
+      return {
+        tag: 'input',
+        selfClosing: true,
+        style: { ...inputBaseStyle, ...styleFromProps(p) },
+        attrs: {
+          type: (p.inputType as string) ?? 'text',
+          placeholder: (p.placeholder as string) ?? '',
+          ...fieldAttrs(p),
+          ...(p.min != null && p.min !== '' ? { min: String(p.min) } : {}),
+          ...(p.max != null && p.max !== '' ? { max: String(p.max) } : {}),
+        },
+      }
+    case 'textarea':
+      return {
+        tag: 'textarea',
+        style: {
+          ...inputBaseStyle,
+          resize: (p.resize as CSSProperties['resize']) ?? 'vertical',
+          ...styleFromProps(p),
+        },
+        attrs: {
+          placeholder: (p.placeholder as string) ?? '',
+          rows: String((p.rows as number) ?? 4),
+          ...fieldAttrs(p),
+        },
       }
     default:
       return { tag: 'div', style: {} }
@@ -368,7 +428,90 @@ function serializeNode(
     return `${pad}<a href="${escapeAttr(href)}" style="display: contents; color: inherit; text-decoration: none">\n${inner}\n${pad}</a>`
   }
 
+  const labelText = node.props.label as string
+  if (
+    (node.type === 'input' ||
+      node.type === 'textarea' ||
+      node.type === 'select') &&
+    labelText
+  ) {
+    const pad = '  '.repeat(indent)
+    const innerPad = '  '.repeat(indent + 1)
+    const wrapClass = sheet.classFor({
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+    })
+    const spanClass = sheet.classFor({ fontSize: 13, fontWeight: 500 })
+    const field = serializeElement(doc, node, indent + 1, sheet, ctx)
+    return [
+      `${pad}<label${wrapClass ? ` class="${wrapClass}"` : ''}>`,
+      `${innerPad}<span${spanClass ? ` class="${spanClass}"` : ''}>${escapeHtml(labelText)}</span>`,
+      field,
+      `${pad}</label>`,
+    ].join('\n')
+  }
+
   return serializeElement(doc, node, indent, sheet, ctx)
+}
+
+function serializeFormControl(
+  node: EditorDocument['nodes'][string],
+  indent: number,
+  sheet: StyleSheet,
+): string | null {
+  const p = node.props
+  const pad = '  '.repeat(indent)
+  const inner = '  '.repeat(indent + 1)
+
+  if (node.type === 'select') {
+    const cls = sheet.classFor({ ...inputBaseStyle, ...styleFromProps(p) })
+    const classAttr = cls ? ` class="${cls}"` : ''
+    const lines: string[] = []
+    if (p.placeholder) {
+      lines.push(
+        `${inner}<option value="" disabled selected>${escapeHtml(p.placeholder as string)}</option>`,
+      )
+    }
+    for (const opt of optionList(p)) {
+      lines.push(`${inner}<option>${escapeHtml(opt)}</option>`)
+    }
+    return `${pad}<select${attrString(fieldAttrs(p))}${classAttr}>\n${lines.join('\n')}\n${pad}</select>`
+  }
+
+  if (node.type === 'checkbox') {
+    const cls = sheet.classFor({
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      ...styleFromProps(p),
+    })
+    const classAttr = cls ? ` class="${cls}"` : ''
+    const inputAttrs = attrString({
+      type: 'checkbox',
+      ...fieldAttrs(p),
+      ...(p.checked ? { checked: 'checked' } : {}),
+    })
+    return `${pad}<label${classAttr}><input${inputAttrs} /> ${escapeHtml((p.label as string) ?? '')}</label>`
+  }
+
+  if (node.type === 'radio') {
+    const cls = sheet.classFor({
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      ...styleFromProps(p),
+    })
+    const classAttr = cls ? ` class="${cls}"` : ''
+    const name = (p.name as string) ?? ''
+    const items = optionList(p).map(
+      (opt) =>
+        `${inner}<label><input type="radio" name="${escapeAttr(name)}" value="${escapeAttr(opt)}" /> ${escapeHtml(opt)}</label>`,
+    )
+    return `${pad}<div${classAttr}>\n${items.join('\n')}\n${pad}</div>`
+  }
+
+  return null
 }
 
 function serializeElement(
@@ -378,6 +521,23 @@ function serializeElement(
   sheet: StyleSheet,
   ctx?: RenderContext,
 ): string {
+  const formControl = serializeFormControl(node, indent, sheet)
+  if (formControl !== null) return formControl
+
+  if (node.type === 'icon') {
+    const p = node.props
+    const svg = ctx?.renderIcon ? ctx.renderIcon(p.icon as string) : null
+    const cls = sheet.classFor({
+      display: 'inline-flex',
+      color: p.color as string,
+      width: p.size as number,
+      height: p.size as number,
+      ...styleFromProps(p),
+    })
+    const classAttr = cls ? ` class="${cls}"` : ''
+    return `${'  '.repeat(indent)}<span data-icon${classAttr}>${svg ?? ''}</span>`
+  }
+
   const view = describeNode(node, ctx)
   const pad = '  '.repeat(indent)
   const className = sheet.classFor(view.style, view.hoverStyle)
@@ -427,6 +587,7 @@ export function toHtmlDocument(doc: EditorDocument, ctx?: RenderContext): string
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+  [data-icon] > svg { width: 100%; height: 100%; display: block; }
 ${sheet.toCss('  ')}
 </style>
 </head>
@@ -447,7 +608,10 @@ function slug(name: string): string {
   )
 }
 
-export function buildSite(project: Project): { name: string; content: string }[] {
+export function buildSite(
+  project: Project,
+  ctxExtra: Partial<RenderContext> = {},
+): { name: string; content: string }[] {
   const used = new Set<string>()
   const fileFor = new Map<string, string>()
 
@@ -465,6 +629,7 @@ export function buildSite(project: Project): { name: string; content: string }[]
 
   const ctx: RenderContext = {
     resolveLink: (id) => fileFor.get(id) ?? '#',
+    ...ctxExtra,
   }
 
   return project.pages.map((page) => ({

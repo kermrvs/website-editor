@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { JSX, ReactNode } from 'react'
 import type { NodeId } from '../model/types'
-import { describeNode } from '../model/render'
+import { describeNode, styleFromProps } from '../model/render'
+import { FormControl } from './FormControl'
+import { Icon } from './Icon'
 import { useEditorStore } from '../store'
 
 function PreviewNode({ id }: { id: NodeId }) {
@@ -49,6 +51,38 @@ function PreviewNode({ id }: { id: NodeId }) {
         {view.text}
       </a>
     )
+  } else if (node.type === 'icon') {
+    element = (
+      <Icon
+        name={node.props.icon as string}
+        {...hoverHandlers}
+        style={{
+          color: node.props.color as string,
+          width: node.props.size as number,
+          height: node.props.size as number,
+          ...styleFromProps(node.props),
+        }}
+      />
+    )
+  } else if (
+    node.type === 'select' ||
+    node.type === 'checkbox' ||
+    node.type === 'radio'
+  ) {
+    element = <FormControl node={node} interactive />
+  } else if (node.type === 'form') {
+    element = (
+      <form
+        style={style}
+        {...attrs}
+        {...hoverHandlers}
+        onSubmit={(e) => e.preventDefault()}
+      >
+        {node.children.map((childId) => (
+          <PreviewNode key={childId} id={childId} />
+        ))}
+      </form>
+    )
   } else {
     const Tag = view.tag as keyof JSX.IntrinsicElements
     if (node.children.length === 0 && view.text !== undefined) {
@@ -56,11 +90,12 @@ function PreviewNode({ id }: { id: NodeId }) {
         view.html != null ? (
           <Tag
             style={style}
+            {...attrs}
             {...hoverHandlers}
             dangerouslySetInnerHTML={{ __html: view.html }}
           />
         ) : (
-          <Tag style={style} {...hoverHandlers}>
+          <Tag style={style} {...attrs} {...hoverHandlers}>
             {view.text}
           </Tag>
         )
@@ -73,6 +108,21 @@ function PreviewNode({ id }: { id: NodeId }) {
         </Tag>
       )
     }
+  }
+
+  const labelText = node.props.label as string
+  if (
+    (node.type === 'input' ||
+      node.type === 'textarea' ||
+      node.type === 'select') &&
+    labelText
+  ) {
+    return (
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>{labelText}</span>
+        {element}
+      </label>
+    )
   }
 
   if (node.type !== 'link') {
