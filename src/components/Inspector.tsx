@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEditorStore } from '../store'
+import { propsAt } from '../model/render'
 import { useConfig } from '../config'
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -186,6 +187,7 @@ export function Inspector() {
   const updateProps = useEditorStore((s) => s.updateProps)
   const removeNode = useEditorStore((s) => s.removeNode)
   const duplicateNode = useEditorStore((s) => s.duplicateNode)
+  const breakpoint = useEditorStore((s) => s.breakpoint)
   const config = useConfig()
 
   if (!node) {
@@ -197,7 +199,7 @@ export function Inspector() {
     )
   }
 
-  const p = node.props
+  const p = propsAt(node.props, breakpoint)
   const set = (patch: Record<string, unknown>) => updateProps(node.id, patch)
   const num = (v: unknown, d: number | '' = 0) => (v as number) ?? d
   const str = (v: unknown, d = '') => (v as string) ?? d
@@ -234,6 +236,9 @@ export function Inspector() {
   return (
     <div className="we-inspector">
       <div className="we-panel-title">{node.type}</div>
+      {breakpoint === 'mobile' && (
+        <div className="we-bp-banner">📱 Editing Mobile styles</div>
+      )}
 
       {'text' in p && (
         <Row label="Text">

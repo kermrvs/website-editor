@@ -450,6 +450,27 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.we-mobile-frame {
+  width: 390px;
+  max-width: 100%;
+  margin: 0 auto;
+  border: 1px solid var(--we-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.we-bp-banner {
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: #eef2ff;
+  border: 1px solid var(--we-accent);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--we-accent);
+}
+
 .we-field {
   display: flex;
   flex-direction: column;

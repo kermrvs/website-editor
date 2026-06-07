@@ -8,6 +8,8 @@ import {
   findParentId,
   makeId,
 } from './model/document'
+import type { Breakpoint } from './model/render'
+import { RESPONSIVE_KEYS } from './model/render'
 
 export type EditorMode = 'visual' | 'preview' | 'code'
 
@@ -27,6 +29,7 @@ interface EditorState {
   lastTag: string | null
 
   editingId: NodeId | null
+  breakpoint: Breakpoint
 
   draggingId: NodeId | null
   draggingType: NodeType | null
@@ -36,6 +39,7 @@ interface EditorState {
   undo: () => void
   redo: () => void
   setEditing: (id: NodeId | null) => void
+  setBreakpoint: (breakpoint: Breakpoint) => void
   addPage: () => void
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
@@ -103,6 +107,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     lastTag: null,
 
     editingId: null,
+    breakpoint: 'base',
 
     draggingId: null,
     draggingType: null,
@@ -203,6 +208,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setMode: (mode) => set({ mode }),
     select: (id) => set({ selectedId: id, lastTag: null, editingId: null }),
     setEditing: (id) => set({ editingId: id }),
+    setBreakpoint: (breakpoint) => set({ breakpoint }),
 
     addNode: (type, parentId, index) => {
       const { doc } = get()
@@ -231,19 +237,35 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     updateProps: (id, props) => {
-      const { doc } = get()
+      const { doc, breakpoint } = get()
       const node = doc.nodes[id]
       if (!node) return
+
+      let nextProps: Record<string, unknown>
+      if (breakpoint === 'base') {
+        nextProps = { ...node.props, ...props }
+      } else {
+        const basePatch: Record<string, unknown> = {}
+        const bucketPatch: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(props)) {
+          if (RESPONSIVE_KEYS.has(key)) bucketPatch[key] = value
+          else basePatch[key] = value
+        }
+        const bucket = (node.props[breakpoint] as Record<string, unknown>) ?? {}
+        nextProps = {
+          ...node.props,
+          ...basePatch,
+          [breakpoint]: { ...bucket, ...bucketPatch },
+        }
+      }
+
       commit(
         {
           ...doc,
-          nodes: {
-            ...doc.nodes,
-            [id]: { ...node, props: { ...node.props, ...props } },
-          },
+          nodes: { ...doc.nodes, [id]: { ...node, props: nextProps } },
         },
         {},
-        `props:${id}:${Object.keys(props).join(',')}`,
+        `props:${id}:${breakpoint}:${Object.keys(props).join(',')}`,
       )
     },
 

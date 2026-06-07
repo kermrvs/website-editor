@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { JSX, ReactNode } from 'react'
 import type { NodeId } from '../model/types'
-import { describeNode, styleFromProps } from '../model/render'
+import { describeNode, propsAt, styleFromProps } from '../model/render'
 import { FormControl } from './FormControl'
 import { Icon } from './Icon'
 import { useEditorStore } from '../store'
@@ -9,11 +9,13 @@ import { useEditorStore } from '../store'
 function PreviewNode({ id }: { id: NodeId }) {
   const node = useEditorStore((s) => s.doc.nodes[id])
   const selectPage = useEditorStore((s) => s.selectPage)
+  const breakpoint = useEditorStore((s) => s.breakpoint)
   const [hovered, setHovered] = useState(false)
 
   if (!node) return null
 
-  const view = describeNode(node)
+  const p = propsAt(node.props, breakpoint)
+  const view = describeNode(node, undefined, breakpoint)
   const hasHover = !!view.hoverStyle
 
   const style = {
@@ -54,13 +56,13 @@ function PreviewNode({ id }: { id: NodeId }) {
   } else if (node.type === 'icon') {
     element = (
       <Icon
-        name={node.props.icon as string}
+        name={p.icon as string}
         {...hoverHandlers}
         style={{
-          color: node.props.color as string,
-          width: node.props.size as number,
-          height: node.props.size as number,
-          ...styleFromProps(node.props),
+          color: p.color as string,
+          width: p.size as number,
+          height: p.size as number,
+          ...styleFromProps(p),
         }}
       />
     )
@@ -110,7 +112,7 @@ function PreviewNode({ id }: { id: NodeId }) {
     }
   }
 
-  const labelText = node.props.label as string
+  const labelText = p.label as string
   if (
     (node.type === 'input' ||
       node.type === 'textarea' ||

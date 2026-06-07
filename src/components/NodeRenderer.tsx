@@ -7,6 +7,7 @@ import {
   inputBaseStyle,
   layoutStyle,
   linkBaseStyle,
+  propsAt,
   styleFromProps,
 } from '../model/render'
 import { useEditorStore } from '../store'
@@ -48,6 +49,7 @@ export function NodeRenderer({ id }: Props) {
   const endDrag = useEditorStore((s) => s.endDrag)
   const moveNode = useEditorStore((s) => s.moveNode)
   const addNode = useEditorStore((s) => s.addNode)
+  const breakpoint = useEditorStore((s) => s.breakpoint)
 
   const ref = useRef<HTMLDivElement>(null)
 
@@ -72,7 +74,7 @@ export function NodeRenderer({ id }: Props) {
 
   const onDragEnd = () => endDrag()
 
-  const p = node.props
+  const p = propsAt(node.props, breakpoint)
   const base = styleFromProps(p)
   const layout = (p.layout as string) ?? 'column'
 

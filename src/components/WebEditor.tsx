@@ -33,6 +33,8 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
   const redo = useEditorStore((s) => s.redo)
   const canUndo = useEditorStore((s) => s.past.length > 0)
   const canRedo = useEditorStore((s) => s.future.length > 0)
+  const breakpoint = useEditorStore((s) => s.breakpoint)
+  const setBreakpoint = useEditorStore((s) => s.setBreakpoint)
 
   useEffect(() => {
     if (value && value !== useEditorStore.getState().project) setProject(value)
@@ -115,6 +117,22 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
               </button>
             ))}
           </div>
+          <div className="we-mode-switch">
+            <button
+              className={breakpoint === 'base' ? 'active' : ''}
+              onClick={() => setBreakpoint('base')}
+              title="Desktop"
+            >
+              🖥
+            </button>
+            <button
+              className={breakpoint === 'mobile' ? 'active' : ''}
+              onClick={() => setBreakpoint('mobile')}
+              title="Mobile"
+            >
+              📱
+            </button>
+          </div>
           <button className="we-export" onClick={exportHtml}>
             Export HTML
           </button>
@@ -132,17 +150,19 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
         </div>
 
         <div className="we-canvas">
-          {mode === 'visual' && <NodeRenderer id={doc.root} />}
-          {mode === 'preview' && (
-            <div className="we-preview-wrap">
-              <Preview />
-            </div>
-          )}
-          {mode === 'code' && (
-            <pre className="we-code-preview">
-              {toHtmlDocument(doc, { renderIcon })}
-            </pre>
-          )}
+          <div className={breakpoint === 'mobile' ? 'we-mobile-frame' : undefined}>
+            {mode === 'visual' && <NodeRenderer id={doc.root} />}
+            {mode === 'preview' && (
+              <div className="we-preview-wrap">
+                <Preview />
+              </div>
+            )}
+            {mode === 'code' && (
+              <pre className="we-code-preview">
+                {toHtmlDocument(doc, { renderIcon })}
+              </pre>
+            )}
+          </div>
         </div>
 
         <Inspector />

@@ -7,6 +7,67 @@ export interface RenderContext {
   renderIcon?: (name: string) => string | null
 }
 
+export type Breakpoint = 'base' | 'mobile'
+
+export const RESPONSIVE_KEYS = new Set<string>([
+  'background',
+  'color',
+  'padding',
+  'margin',
+  'radius',
+  'width',
+  'maxWidth',
+  'fontSize',
+  'fontWeight',
+  'textAlign',
+  'shadow',
+  'border',
+  'scale',
+  'bgImage',
+  'bgSize',
+  'bgPosition',
+  'bgOverlay',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'marginTop',
+  'marginRight',
+  'marginBottom',
+  'marginLeft',
+  'radiusTL',
+  'radiusTR',
+  'radiusBR',
+  'radiusBL',
+  'shadowX',
+  'shadowY',
+  'shadowBlur',
+  'shadowSpread',
+  'shadowColor',
+  'shadowOpacity',
+  'shadowInset',
+  'borderWidth',
+  'borderStyle',
+  'borderColor',
+  'layout',
+  'gap',
+  'columns',
+  'align',
+  'justify',
+  'height',
+  'size',
+  'hover',
+])
+
+export function propsAt(
+  props: Record<string, unknown>,
+  breakpoint: Breakpoint,
+): Record<string, unknown> {
+  if (breakpoint === 'base') return props
+  const override = props[breakpoint] as Record<string, unknown> | undefined
+  return override ? { ...props, ...override } : props
+}
+
 const ALIGN_MAP: Record<string, string> = {
   start: 'flex-start',
   center: 'center',
@@ -199,9 +260,14 @@ export function nodeHref(node: EditorNode, ctx?: RenderContext): string | null {
   return null
 }
 
-export function describeNode(node: EditorNode, ctx?: RenderContext): NodeView {
-  const view = viewForType(node, ctx)
-  const hover = node.props.hover
+export function describeNode(
+  node: EditorNode,
+  ctx?: RenderContext,
+  breakpoint: Breakpoint = 'base',
+): NodeView {
+  const props = propsAt(node.props, breakpoint)
+  const view = viewForType({ ...node, props }, ctx)
+  const hover = props.hover
   if (hover) {
     const hoverStyle = styleFromProps(hover as Record<string, unknown>)
     if (Object.keys(hoverStyle).length) view.hoverStyle = hoverStyle
@@ -375,39 +441,53 @@ interface StyleEntry {
   name: string
   css: string
   hoverCss: string
+  mobileCss: string
 }
 
 class StyleSheet {
   private entries = new Map<string, StyleEntry>()
 
-  classFor(style: CSSProperties, hover?: CSSProperties): string | null {
+  classFor(
+    style: CSSProperties,
+    hover?: CSSProperties,
+    mobile?: CSSProperties,
+  ): string | null {
     const css = cssString(style)
     const hoverCss = hover ? cssString(hover) : ''
-    if (!css && !hoverCss) return null
+    const mobileCss = mobile ? cssString(mobile) : ''
+    if (!css && !hoverCss && !mobileCss) return null
 
-    const key = `${css}||${hoverCss}`
+    const key = `${css}||${hoverCss}||${mobileCss}`
     let entry = this.entries.get(key)
     if (!entry) {
-      entry = { name: `c${this.entries.size + 1}`, css, hoverCss }
+      entry = { name: `c${this.entries.size + 1}`, css, hoverCss, mobileCss }
       this.entries.set(key, entry)
     }
     return entry.name
   }
 
   toCss(indent: string): string {
-    const lines: string[] = []
+    const base: string[] = []
+    const mobile: string[] = []
     for (const entry of this.entries.values()) {
-      const base = entry.hoverCss
+      const rule = entry.hoverCss
         ? entry.css
           ? `${entry.css}; transition: all 0.2s ease`
           : 'transition: all 0.2s ease'
         : entry.css
-      if (base) lines.push(`${indent}.${entry.name} { ${base} }`)
+      if (rule) base.push(`${indent}.${entry.name} { ${rule} }`)
       if (entry.hoverCss) {
-        lines.push(`${indent}.${entry.name}:hover { ${entry.hoverCss} }`)
+        base.push(`${indent}.${entry.name}:hover { ${entry.hoverCss} }`)
+      }
+      if (entry.mobileCss) {
+        mobile.push(`${indent}  .${entry.name} { ${entry.mobileCss} }`)
       }
     }
-    return lines.join('\n')
+    let out = base.join('\n')
+    if (mobile.length) {
+      out += `\n${indent}@media (max-width: 640px) {\n${mobile.join('\n')}\n${indent}}`
+    }
+    return out
   }
 }
 
@@ -539,8 +619,11 @@ function serializeElement(
   }
 
   const view = describeNode(node, ctx)
+  const mobileStyle = node.props.mobile
+    ? describeNode(node, ctx, 'mobile').style
+    : undefined
   const pad = '  '.repeat(indent)
-  const className = sheet.classFor(view.style, view.hoverStyle)
+  const className = sheet.classFor(view.style, view.hoverStyle, mobileStyle)
   const classAttr = className ? ` class="${className}"` : ''
   const attrs = attrString(view.attrs)
 
