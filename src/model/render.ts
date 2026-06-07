@@ -5,6 +5,7 @@ import type { Project } from './project'
 export interface RenderContext {
   resolveLink?: (pageId: string) => string
   renderIcon?: (name: string) => string | null
+  components?: Record<string, { doc: EditorDocument }>
 }
 
 export type Breakpoint = 'base' | 'mobile'
@@ -500,6 +501,12 @@ function serializeNode(
 ): string {
   const node = doc.nodes[id]
   if (!node) return ''
+
+  if (node.type === 'instance') {
+    const comp = ctx?.components?.[node.props.componentId as string]
+    if (!comp) return ''
+    return serializeNode(comp.doc, comp.doc.root, indent, sheet, ctx)
+  }
 
   const href = node.type !== 'link' ? nodeHref(node, ctx) : null
   if (href) {

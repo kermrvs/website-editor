@@ -26,6 +26,7 @@ const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   checkbox: { label: 'Check me' },
   radio: { options: ['Option 1', 'Option 2'] },
   icon: { icon: '', size: 24 },
+  instance: { componentId: '' },
 }
 
 export function canHaveChildren(type: NodeType): boolean {

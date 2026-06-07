@@ -30,6 +30,7 @@ interface EditorState {
 
   editingId: NodeId | null
   breakpoint: Breakpoint
+  editingComponentId: string | null
 
   draggingId: NodeId | null
   draggingType: NodeType | null
@@ -40,6 +41,11 @@ interface EditorState {
   redo: () => void
   setEditing: (id: NodeId | null) => void
   setBreakpoint: (breakpoint: Breakpoint) => void
+
+  createComponent: (nodeId: NodeId) => void
+  insertInstance: (componentId: string, parentId: NodeId, index?: number) => void
+  editComponent: (componentId: string) => void
+  exitComponent: () => void
   addPage: () => void
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
@@ -65,18 +71,39 @@ const HISTORY_LIMIT = 100
 export const useEditorStore = create<EditorState>((set, get) => {
   const initialProject = createEmptyProject()
 
+  const writeDoc = (project: Project, state: EditorState, doc: EditorDocument): Project => {
+    if (state.editingComponentId) {
+      const comp = project.components[state.editingComponentId]
+      return {
+        ...project,
+        components: {
+          ...project.components,
+          [state.editingComponentId]: { ...comp, doc },
+        },
+      }
+    }
+    return {
+      ...project,
+      pages: project.pages.map((p) =>
+        p.id === project.currentPageId ? { ...p, doc } : p,
+      ),
+    }
+  }
+
+  const activeDoc = (project: Project, state: EditorState): EditorDocument => {
+    if (state.editingComponentId && project.components[state.editingComponentId]) {
+      return project.components[state.editingComponentId].doc
+    }
+    return currentDoc(project)
+  }
+
   const commit = (
     doc: EditorDocument,
     extra: Partial<EditorState> = {},
     tag?: string,
   ) =>
     set((state) => {
-      const project = {
-        ...state.project,
-        pages: state.project.pages.map((p) =>
-          p.id === state.project.currentPageId ? { ...p, doc } : p,
-        ),
-      }
+      const project = writeDoc(state.project, state, doc)
       const coalesce = tag !== undefined && tag === state.lastTag
       return {
         doc,
@@ -108,6 +135,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     editingId: null,
     breakpoint: 'base',
+    editingComponentId: null,
 
     draggingId: null,
     draggingType: null,
@@ -120,7 +148,15 @@ export const useEditorStore = create<EditorState>((set, get) => {
           state.selectedId && doc.nodes[state.selectedId]
             ? state.selectedId
             : null
-        return { project, doc, selectedId, past: [], future: [], lastTag: null }
+        return {
+          project,
+          doc,
+          selectedId,
+          editingComponentId: null,
+          past: [],
+          future: [],
+          lastTag: null,
+        }
       }),
 
     undo: () =>
@@ -129,7 +165,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         const previous = state.past[state.past.length - 1]
         return {
           project: previous,
-          doc: currentDoc(previous),
+          doc: activeDoc(previous, state),
           past: state.past.slice(0, -1),
           future: [state.project, ...state.future].slice(0, HISTORY_LIMIT),
           selectedId: null,
@@ -143,7 +179,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         const next = state.future[0]
         return {
           project: next,
-          doc: currentDoc(next),
+          doc: activeDoc(next, state),
           past: [...state.past, state.project].slice(-HISTORY_LIMIT),
           future: state.future.slice(1),
           selectedId: null,
@@ -157,11 +193,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
         return {
           ...pushHistory(state),
           project: {
+            ...state.project,
             pages: [...state.project.pages, page],
             currentPageId: page.id,
           },
           doc: page.doc,
           selectedId: null,
+          editingComponentId: null,
         }
       }),
 
@@ -173,12 +211,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
           state.project.currentPageId === id
             ? pages[0].id
             : state.project.currentPageId
-        const project = { pages, currentPageId }
+        const project = { ...state.project, pages, currentPageId }
         return {
           ...pushHistory(state),
           project,
           doc: currentDoc(project),
           selectedId: null,
+          editingComponentId: null,
         }
       }),
 

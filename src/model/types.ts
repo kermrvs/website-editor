@@ -19,6 +19,7 @@ export type NodeType =
   | 'checkbox'
   | 'radio'
   | 'icon'
+  | 'instance'
 
 export interface EditorNode {
   id: NodeId
