@@ -9,6 +9,7 @@ import {
   styleFromProps,
 } from '../model/render'
 import { useEditorStore } from '../store'
+import { EditableText } from './EditableText'
 
 interface Props {
   id: NodeId
@@ -160,48 +161,31 @@ export function NodeRenderer({ id }: Props) {
       )
     }
 
-    case 'heading': {
-      const Tag = `h${(p.level as number) ?? 2}` as 'h1'
+    case 'heading':
       return (
-        <Tag
-          data-node-id={id}
-          draggable
-          onClick={onClick}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+        <EditableText
+          id={id}
+          tag={`h${(p.level as number) ?? 2}`}
           style={{ margin: 0, ...base, ...selectionStyle }}
-        >
-          {p.text as string}
-        </Tag>
+        />
       )
-    }
 
     case 'text':
       return (
-        <p
-          data-node-id={id}
-          draggable
-          onClick={onClick}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+        <EditableText
+          id={id}
+          tag="p"
           style={{ margin: 0, ...base, ...selectionStyle }}
-        >
-          {p.text as string}
-        </p>
+        />
       )
 
     case 'button':
       return (
-        <button
-          data-node-id={id}
-          draggable
-          onClick={onClick}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+        <EditableText
+          id={id}
+          tag="button"
           style={{ ...buttonBaseStyle, ...base, ...selectionStyle }}
-        >
-          {p.text as string}
-        </button>
+        />
       )
 
     case 'image':
@@ -220,19 +204,63 @@ export function NodeRenderer({ id }: Props) {
 
     case 'link':
       return (
-        <a
+        <EditableText
+          id={id}
+          tag="a"
+          isLink
+          style={{ ...linkBaseStyle, ...base, ...selectionStyle }}
+        />
+      )
+
+    case 'divider':
+      return (
+        <hr
           data-node-id={id}
           draggable
-          onClick={(e) => {
-            e.preventDefault()
-            onClick(e)
-          }}
+          onClick={onClick}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
-          style={{ ...linkBaseStyle, ...base, ...selectionStyle }}
+          style={{
+            border: 'none',
+            borderTop: `${(p.lineThickness as number) ?? 1}px solid ${
+              (p.lineColor as string) ?? '#e5e7eb'
+            }`,
+            ...base,
+            ...selectionStyle,
+          }}
+        />
+      )
+
+    case 'spacer':
+      return (
+        <div
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="we-spacer"
+          style={{ height: (p.height as number) ?? 40, ...base, ...selectionStyle }}
         >
-          {p.text as string}
-        </a>
+          <span>Spacer</span>
+        </div>
+      )
+
+    case 'video':
+    case 'embed':
+      return (
+        <div
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="we-media-placeholder"
+          style={{ ...base, ...selectionStyle }}
+        >
+          {node.type === 'video' ? '▶ Video' : '⧉ Embed'}
+          {p.src ? <small>{p.src as string}</small> : <small>no source set</small>}
+        </div>
       )
 
     default:

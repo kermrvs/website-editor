@@ -10,6 +10,174 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+interface Side {
+  key: string
+  short: string
+}
+
+function BoxSides({
+  label,
+  baseKey,
+  sides,
+  p,
+  set,
+}: {
+  label: string
+  baseKey: string
+  sides: Side[]
+  p: Record<string, unknown>
+  set: (patch: Record<string, unknown>) => void
+}) {
+  const expanded = sides.some((s) => p[s.key] !== undefined)
+  const val = (v: unknown) => (v as number) ?? 0
+
+  const toggle = () => {
+    if (expanded) {
+      const patch: Record<string, unknown> = { [baseKey]: val(p[sides[0].key]) }
+      for (const s of sides) patch[s.key] = undefined
+      set(patch)
+    } else {
+      const base = val(p[baseKey])
+      const patch: Record<string, unknown> = {}
+      for (const s of sides) patch[s.key] = base
+      set(patch)
+    }
+  }
+
+  return (
+    <div className="we-field">
+      <span className="we-field-head">
+        {label}
+        <button className="we-mini" onClick={toggle}>
+          {expanded ? 'Single' : 'Per side'}
+        </button>
+      </span>
+      {expanded ? (
+        <div className="we-corners">
+          {sides.map((s) => (
+            <label key={s.key} className="we-corner">
+              <span>{s.short}</span>
+              <input
+                type="number"
+                value={val(p[s.key])}
+                onChange={(e) => set({ [s.key]: Number(e.target.value) })}
+              />
+            </label>
+          ))}
+        </div>
+      ) : (
+        <input
+          type="number"
+          value={val(p[baseKey])}
+          onChange={(e) => set({ [baseKey]: Number(e.target.value) })}
+        />
+      )}
+    </div>
+  )
+}
+
+const PADDING_SIDES: Side[] = [
+  { key: 'paddingTop', short: 'T' },
+  { key: 'paddingRight', short: 'R' },
+  { key: 'paddingBottom', short: 'B' },
+  { key: 'paddingLeft', short: 'L' },
+]
+
+const MARGIN_SIDES: Side[] = [
+  { key: 'marginTop', short: 'T' },
+  { key: 'marginRight', short: 'R' },
+  { key: 'marginBottom', short: 'B' },
+  { key: 'marginLeft', short: 'L' },
+]
+
+function ShadowControls({
+  p,
+  set,
+}: {
+  p: Record<string, unknown>
+  set: (patch: Record<string, unknown>) => void
+}) {
+  const num = (v: unknown, d: number) => (v as number) ?? d
+  const str = (v: unknown, d: string) => (v as string) ?? d
+
+  return (
+    <>
+      <label className="we-check">
+        <input
+          type="checkbox"
+          checked={!!p.shadow}
+          onChange={(e) => set({ shadow: e.target.checked || undefined })}
+        />
+        <span>Shadow</span>
+      </label>
+      {p.shadow ? (
+        <>
+          <div className="we-corners">
+            <label className="we-corner">
+              <span>X</span>
+              <input
+                type="number"
+                value={num(p.shadowX, 0)}
+                onChange={(e) => set({ shadowX: Number(e.target.value) })}
+              />
+            </label>
+            <label className="we-corner">
+              <span>Y</span>
+              <input
+                type="number"
+                value={num(p.shadowY, 4)}
+                onChange={(e) => set({ shadowY: Number(e.target.value) })}
+              />
+            </label>
+            <label className="we-corner">
+              <span>Blur</span>
+              <input
+                type="number"
+                min={0}
+                value={num(p.shadowBlur, 16)}
+                onChange={(e) => set({ shadowBlur: Number(e.target.value) })}
+              />
+            </label>
+            <label className="we-corner">
+              <span>Spread</span>
+              <input
+                type="number"
+                value={num(p.shadowSpread, 0)}
+                onChange={(e) => set({ shadowSpread: Number(e.target.value) })}
+              />
+            </label>
+          </div>
+          <Row label="Shadow color">
+            <input
+              type="color"
+              value={str(p.shadowColor, '#000000')}
+              onChange={(e) => set({ shadowColor: e.target.value })}
+            />
+          </Row>
+          <Row label="Shadow opacity">
+            <input
+              type="number"
+              min={0}
+              max={1}
+              step="0.05"
+              value={num(p.shadowOpacity, 0.1)}
+              onChange={(e) => set({ shadowOpacity: Number(e.target.value) })}
+            />
+          </Row>
+          <label className="we-check">
+            <input
+              type="checkbox"
+              checked={!!p.shadowInset}
+              onChange={(e) => set({ shadowInset: e.target.checked || undefined })}
+            />
+            <span>Inset</span>
+          </label>
+        </>
+      ) : null}
+    </>
+  )
+}
+
 export function Inspector() {
   const selectedId = useEditorStore((s) => s.selectedId)
   const node = useEditorStore((s) => (selectedId ? s.doc.nodes[selectedId] : null))
@@ -95,20 +263,91 @@ export function Inspector() {
         </Row>
       )}
 
-      {node.type === 'link' && (
-        <Row label="Link to page">
-          <select
-            value={str(p.linkTo)}
-            onChange={(e) => set({ linkTo: e.target.value })}
-          >
-            <option value="">— none —</option>
-            {pages.map((pg) => (
-              <option key={pg.id} value={pg.id}>
-                {pg.name}
-              </option>
-            ))}
-          </select>
+      {node.type === 'divider' && (
+        <>
+          <Row label="Line color">
+            <input
+              type="color"
+              value={str(p.lineColor, '#e5e7eb')}
+              onChange={(e) => set({ lineColor: e.target.value })}
+            />
+          </Row>
+          <Row label="Thickness">
+            <input
+              type="number"
+              min={1}
+              value={num(p.lineThickness, 1)}
+              onChange={(e) => set({ lineThickness: Number(e.target.value) })}
+            />
+          </Row>
+        </>
+      )}
+
+      {node.type === 'spacer' && (
+        <Row label="Height">
+          <input
+            type="number"
+            min={0}
+            value={num(p.height, 40)}
+            onChange={(e) => set({ height: Number(e.target.value) })}
+          />
         </Row>
+      )}
+
+      {node.type === 'video' && (
+        <Row label="Video URL">
+          <input
+            placeholder="https://….mp4"
+            value={str(p.src)}
+            onChange={(e) => set({ src: e.target.value })}
+          />
+        </Row>
+      )}
+
+      {node.type === 'embed' && (
+        <>
+          <Row label="Embed URL">
+            <input
+              placeholder="https://… (YouTube, maps)"
+              value={str(p.src)}
+              onChange={(e) => set({ src: e.target.value })}
+            />
+          </Row>
+          <Row label="Height">
+            <input
+              type="number"
+              min={0}
+              value={num(p.height, 400)}
+              onChange={(e) => set({ height: Number(e.target.value) })}
+            />
+          </Row>
+        </>
+      )}
+
+      {node.type !== 'root' && (
+        <>
+          <div className="we-section">Link</div>
+          <Row label="To page">
+            <select
+              value={str(p.linkTo)}
+              onChange={(e) => set({ linkTo: e.target.value || undefined })}
+            >
+              <option value="">— none —</option>
+              {pages.map((pg) => (
+                <option key={pg.id} value={pg.id}>
+                  {pg.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label="External URL">
+            <input
+              placeholder="https://…"
+              value={str(p.href)}
+              onChange={(e) => set({ href: e.target.value || undefined })}
+            />
+          </Row>
+        </>
       )}
 
       {isContainer && (
@@ -293,21 +532,8 @@ export function Inspector() {
         </>
       )}
 
-      <Row label="Padding">
-        <input
-          type="number"
-          min={0}
-          value={num(p.padding, 0)}
-          onChange={(e) => set({ padding: Number(e.target.value) })}
-        />
-      </Row>
-      <Row label="Margin">
-        <input
-          type="number"
-          value={num(p.margin, 0)}
-          onChange={(e) => set({ margin: Number(e.target.value) })}
-        />
-      </Row>
+      <BoxSides label="Padding" baseKey="padding" sides={PADDING_SIDES} p={p} set={set} />
+      <BoxSides label="Margin" baseKey="margin" sides={MARGIN_SIDES} p={p} set={set} />
       <div className="we-field">
         <span className="we-field-head">
           Radius
@@ -375,22 +601,44 @@ export function Inspector() {
         />
       </Row>
 
-      <label className="we-check">
-        <input
-          type="checkbox"
-          checked={!!p.shadow}
-          onChange={(e) => set({ shadow: e.target.checked })}
-        />
-        <span>Shadow</span>
-      </label>
+      <ShadowControls p={p} set={set} />
       <label className="we-check">
         <input
           type="checkbox"
           checked={!!p.border}
-          onChange={(e) => set({ border: e.target.checked })}
+          onChange={(e) => set({ border: e.target.checked || undefined })}
         />
         <span>Border</span>
       </label>
+      {p.border ? (
+        <>
+          <Row label="Border width">
+            <input
+              type="number"
+              min={0}
+              value={num(p.borderWidth, 1)}
+              onChange={(e) => set({ borderWidth: Number(e.target.value) })}
+            />
+          </Row>
+          <Row label="Border style">
+            <select
+              value={str(p.borderStyle, 'solid')}
+              onChange={(e) => set({ borderStyle: e.target.value })}
+            >
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
+            </select>
+          </Row>
+          <Row label="Border color">
+            <input
+              type="color"
+              value={str(p.borderColor, '#e5e7eb')}
+              onChange={(e) => set({ borderColor: e.target.value })}
+            />
+          </Row>
+        </>
+      ) : null}
 
       {node.type !== 'root' && (
         <>
@@ -433,16 +681,7 @@ export function Inspector() {
               />
             </Row>
           )}
-          <label className="we-check">
-            <input
-              type="checkbox"
-              checked={!!hover.shadow}
-              onChange={(e) =>
-                setHover({ shadow: e.target.checked ? true : undefined })
-              }
-            />
-            <span>Shadow</span>
-          </label>
+          <ShadowControls p={hover} set={setHover} />
           <Row label="Scale">
             <input
               type="number"

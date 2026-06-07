@@ -15,6 +15,10 @@ const DEFAULT_PROPS: Record<NodeType, Record<string, unknown>> = {
   button: { text: 'Button' },
   image: { src: 'https://placehold.co/200x120', alt: '' },
   link: { text: 'Link', linkTo: '' },
+  divider: { lineColor: '#e5e7eb', lineThickness: 1 },
+  spacer: { height: 40 },
+  video: { src: '' },
+  embed: { src: '', height: 400 },
 }
 
 export function canHaveChildren(type: NodeType): boolean {

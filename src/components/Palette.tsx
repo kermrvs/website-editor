@@ -9,6 +9,10 @@ const BLOCKS: { type: NodeType; label: string }[] = [
   { type: 'button', label: '⬜  Button' },
   { type: 'image', label: '\u{1f5bc}  Image' },
   { type: 'link', label: '🔗  Link' },
+  { type: 'divider', label: '―  Divider' },
+  { type: 'spacer', label: '↕  Spacer' },
+  { type: 'video', label: '▶  Video' },
+  { type: 'embed', label: '⧉  Embed' },
 ]
 
 export function Palette() {

@@ -26,6 +26,8 @@ interface EditorState {
   future: Project[]
   lastTag: string | null
 
+  editingId: NodeId | null
+
   draggingId: NodeId | null
   draggingType: NodeType | null
   dropTarget: DropTarget | null
@@ -33,6 +35,7 @@ interface EditorState {
   setProject: (project: Project) => void
   undo: () => void
   redo: () => void
+  setEditing: (id: NodeId | null) => void
   addPage: () => void
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
@@ -98,6 +101,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     past: [],
     future: [],
     lastTag: null,
+
+    editingId: null,
 
     draggingId: null,
     draggingType: null,
@@ -196,7 +201,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       }),
 
     setMode: (mode) => set({ mode }),
-    select: (id) => set({ selectedId: id, lastTag: null }),
+    select: (id) => set({ selectedId: id, lastTag: null, editingId: null }),
+    setEditing: (id) => set({ editingId: id }),
 
     addNode: (type, parentId, index) => {
       const { doc } = get()

@@ -8,6 +8,10 @@ export type NodeType =
   | 'button'
   | 'image'
   | 'link'
+  | 'divider'
+  | 'spacer'
+  | 'video'
+  | 'embed'
 
 export interface EditorNode {
   id: NodeId

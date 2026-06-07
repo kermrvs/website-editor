@@ -5,6 +5,7 @@ import { createZip } from '../model/zip'
 import { useEditorStore } from '../store'
 import { NodeRenderer } from './NodeRenderer'
 import { Preview } from './Preview'
+import { FormatBar } from './FormatBar'
 import { Pages } from './Pages'
 import { Palette } from './Palette'
 import { Layers } from './Layers'
@@ -43,6 +44,7 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
       const target = e.target as HTMLElement
       const tag = target.tagName
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      if (target.isContentEditable) return
 
       const key = e.key.toLowerCase()
       if (key === 'z' && !e.shiftKey) {
@@ -130,6 +132,8 @@ export function WebEditor({ value, onChange }: WebEditorProps) {
 
         <Inspector />
       </div>
+
+      <FormatBar />
     </div>
   )
 }

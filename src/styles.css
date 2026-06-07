@@ -282,6 +282,49 @@
   outline-offset: -1px;
 }
 
+.we-spacer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      #fafafa,
+      #fafafa 6px,
+      #f3f4f6 6px,
+      #f3f4f6 12px
+    );
+}
+
+.we-spacer span {
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.we-media-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 120px;
+  padding: 16px;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.we-media-placeholder small {
+  font-weight: 400;
+  font-size: 11px;
+  color: #9ca3af;
+  word-break: break-all;
+  text-align: center;
+}
+
 .we-empty {
   flex: 1;
   display: flex;
@@ -390,10 +433,17 @@
 
 .we-field input,
 .we-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 6px 8px;
   border: 1px solid var(--we-border);
   border-radius: 6px;
   font: inherit;
+}
+
+.we-corner {
+  min-width: 0;
 }
 
 .we-color-row {
@@ -443,6 +493,56 @@
   border-radius: 4px;
   background:
     repeating-conic-gradient(#d1d5db 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+}
+
+.we-formatbar {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: #1f2937;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-family: system-ui, sans-serif;
+}
+
+.we-formatbar button {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.we-formatbar button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.we-formatbar-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.we-formatbar-color {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.we-formatbar-color input {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .we-section {

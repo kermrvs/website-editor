@@ -34,12 +34,55 @@ export const linkBaseStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const m = hex.replace('#', '')
+  const full = m.length === 3 ? m.split('').map((c) => c + c).join('') : m
+  const r = parseInt(full.slice(0, 2), 16) || 0
+  const g = parseInt(full.slice(2, 4), 16) || 0
+  const b = parseInt(full.slice(4, 6), 16) || 0
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function sideShorthand(
+  p: Record<string, unknown>,
+  base: string,
+  top: string,
+  right: string,
+  bottom: string,
+  left: string,
+): string | number | undefined {
+  const sides = [p[top], p[right], p[bottom], p[left]]
+  if (sides.some((v) => v != null)) {
+    const b = (p[base] as number) ?? 0
+    const v = (x: unknown) => (x as number) ?? b
+    return `${v(p[top])}px ${v(p[right])}px ${v(p[bottom])}px ${v(p[left])}px`
+  }
+  if (p[base] != null) return p[base] as number
+  return undefined
+}
+
 export function styleFromProps(p: Record<string, unknown>): CSSProperties {
   const s: CSSProperties = {}
   if (p.background != null) s.background = p.background as string
   if (p.color != null) s.color = p.color as string
-  if (p.padding != null) s.padding = p.padding as number
-  if (p.margin != null) s.margin = p.margin as number
+  const pad = sideShorthand(
+    p,
+    'padding',
+    'paddingTop',
+    'paddingRight',
+    'paddingBottom',
+    'paddingLeft',
+  )
+  if (pad !== undefined) s.padding = pad
+  const mar = sideShorthand(
+    p,
+    'margin',
+    'marginTop',
+    'marginRight',
+    'marginBottom',
+    'marginLeft',
+  )
+  if (mar !== undefined) s.margin = mar
   const corners = [p.radiusTL, p.radiusTR, p.radiusBR, p.radiusBL]
   if (corners.some((c) => c != null)) {
     const base = (p.radius as number) ?? 0
@@ -58,8 +101,24 @@ export function styleFromProps(p: Record<string, unknown>): CSSProperties {
   if (p.fontSize != null) s.fontSize = p.fontSize as number
   if (p.fontWeight != null) s.fontWeight = p.fontWeight as number
   if (p.textAlign != null) s.textAlign = p.textAlign as CSSProperties['textAlign']
-  if (p.shadow) s.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)'
-  if (p.border) s.border = '1px solid #e5e7eb'
+  if (p.shadow) {
+    const x = (p.shadowX as number) ?? 0
+    const y = (p.shadowY as number) ?? 4
+    const blur = (p.shadowBlur as number) ?? 16
+    const spread = (p.shadowSpread as number) ?? 0
+    const color = hexToRgba(
+      (p.shadowColor as string) ?? '#000000',
+      (p.shadowOpacity as number) ?? 0.1,
+    )
+    const inset = p.shadowInset ? 'inset ' : ''
+    s.boxShadow = `${inset}${x}px ${y}px ${blur}px ${spread}px ${color}`
+  }
+  if (p.border) {
+    const w = (p.borderWidth as number) ?? 1
+    const style = (p.borderStyle as string) ?? 'solid'
+    const color = (p.borderColor as string) ?? '#e5e7eb'
+    s.border = `${w}px ${style} ${color}`
+  }
   if (p.scale != null) s.transform = `scale(${p.scale as number})`
   if (p.bgImage) {
     const url = `url("${p.bgImage as string}")`
@@ -103,9 +162,18 @@ export interface NodeView {
   tag: string
   style: CSSProperties
   text?: string
+  html?: string
   selfClosing?: boolean
   attrs?: Record<string, string>
   hoverStyle?: CSSProperties
+}
+
+export function nodeHref(node: EditorNode, ctx?: RenderContext): string | null {
+  const linkTo = node.props.linkTo as string
+  const href = node.props.href as string
+  if (linkTo) return ctx?.resolveLink ? ctx.resolveLink(linkTo) : '#'
+  if (href) return href
+  return null
 }
 
 export function describeNode(node: EditorNode, ctx?: RenderContext): NodeView {
@@ -130,18 +198,21 @@ function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
         tag: `h${(p.level as number) ?? 2}`,
         style: { margin: 0, ...styleFromProps(p) },
         text: (p.text as string) ?? '',
+        html: p.html as string | undefined,
       }
     case 'text':
       return {
         tag: 'p',
         style: { margin: 0, ...styleFromProps(p) },
         text: (p.text as string) ?? '',
+        html: p.html as string | undefined,
       }
     case 'button':
       return {
         tag: 'button',
         style: { ...buttonBaseStyle, ...styleFromProps(p) },
         text: (p.text as string) ?? '',
+        html: p.html as string | undefined,
       }
     case 'image':
       return {
@@ -150,17 +221,48 @@ function viewForType(node: EditorNode, ctx?: RenderContext): NodeView {
         attrs: { src: (p.src as string) ?? '', alt: (p.alt as string) ?? '' },
         style: { ...imageBaseStyle, ...styleFromProps(p) },
       }
-    case 'link': {
-      const target = p.linkTo as string
-      const href =
-        target && ctx?.resolveLink ? ctx.resolveLink(target) : target ? '#' : '#'
+    case 'link':
       return {
         tag: 'a',
         style: { ...linkBaseStyle, ...styleFromProps(p) },
         text: (p.text as string) ?? '',
-        attrs: { href },
+        html: p.html as string | undefined,
+        attrs: { href: nodeHref(node, ctx) ?? '#' },
       }
-    }
+    case 'divider':
+      return {
+        tag: 'hr',
+        selfClosing: true,
+        style: {
+          border: 'none',
+          borderTop: `${(p.lineThickness as number) ?? 1}px solid ${
+            (p.lineColor as string) ?? '#e5e7eb'
+          }`,
+          ...styleFromProps(p),
+        },
+      }
+    case 'spacer':
+      return {
+        tag: 'div',
+        style: { height: (p.height as number) ?? 40, ...styleFromProps(p) },
+      }
+    case 'video':
+      return {
+        tag: 'video',
+        style: { maxWidth: '100%', display: 'block', ...styleFromProps(p) },
+        attrs: { src: (p.src as string) ?? '', controls: 'controls' },
+      }
+    case 'embed':
+      return {
+        tag: 'iframe',
+        style: {
+          width: '100%',
+          height: (p.height as number) ?? 400,
+          border: 'none',
+          ...styleFromProps(p),
+        },
+        attrs: { src: (p.src as string) ?? '' },
+      }
     default:
       return { tag: 'div', style: {} }
   }
@@ -259,6 +361,23 @@ function serializeNode(
   const node = doc.nodes[id]
   if (!node) return ''
 
+  const href = node.type !== 'link' ? nodeHref(node, ctx) : null
+  if (href) {
+    const pad = '  '.repeat(indent)
+    const inner = serializeElement(doc, node, indent + 1, sheet, ctx)
+    return `${pad}<a href="${escapeAttr(href)}" style="display: contents; color: inherit; text-decoration: none">\n${inner}\n${pad}</a>`
+  }
+
+  return serializeElement(doc, node, indent, sheet, ctx)
+}
+
+function serializeElement(
+  doc: EditorDocument,
+  node: EditorDocument['nodes'][string],
+  indent: number,
+  sheet: StyleSheet,
+  ctx?: RenderContext,
+): string {
   const view = describeNode(node, ctx)
   const pad = '  '.repeat(indent)
   const className = sheet.classFor(view.style, view.hoverStyle)
@@ -270,7 +389,8 @@ function serializeNode(
   }
 
   if (node.children.length === 0 && view.text !== undefined) {
-    return `${pad}<${view.tag}${attrs}${classAttr}>${escapeHtml(view.text)}</${view.tag}>`
+    const inner = view.html != null ? view.html : escapeHtml(view.text)
+    return `${pad}<${view.tag}${attrs}${classAttr}>${inner}</${view.tag}>`
   }
 
   const inner = node.children
