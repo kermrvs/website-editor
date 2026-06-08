@@ -11,6 +11,7 @@ import { Preview } from './Preview'
 import { FormatBar } from './FormatBar'
 import { Pages } from './Pages'
 import { Palette } from './Palette'
+import { Components } from './Components'
 import { Layers } from './Layers'
 import { Inspector } from './Inspector'
 import '../styles.css'
@@ -35,6 +36,13 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
   const canRedo = useEditorStore((s) => s.future.length > 0)
   const breakpoint = useEditorStore((s) => s.breakpoint)
   const setBreakpoint = useEditorStore((s) => s.setBreakpoint)
+  const editingComponentId = useEditorStore((s) => s.editingComponentId)
+  const editingComponentName = useEditorStore((s) =>
+    s.editingComponentId
+      ? s.project.components[s.editingComponentId]?.name
+      : null,
+  )
+  const exitComponent = useEditorStore((s) => s.exitComponent)
 
   useEffect(() => {
     if (value && value !== useEditorStore.getState().project) setProject(value)
@@ -125,17 +133,19 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
     return Component ? renderToStaticMarkup(createElement(Component)) : null
   }
 
+  const exportCtx = { renderIcon, components: project.components }
+
   const exportHtml = () => {
     const current = project.pages.find((p) => p.id === project.currentPageId)
     const name = (current?.name || 'page').replace(/\s+/g, '-').toLowerCase()
     download(
-      new Blob([toHtmlDocument(doc, { renderIcon })], { type: 'text/html' }),
+      new Blob([toHtmlDocument(doc, exportCtx)], { type: 'text/html' }),
       `${name}.html`,
     )
   }
 
   const exportSite = () => {
-    download(createZip(buildSite(project, { renderIcon })), 'site.zip')
+    download(createZip(buildSite(project, exportCtx)), 'site.zip')
   }
 
   const exportJson = () => {
@@ -215,10 +225,17 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
         <div className="we-left">
           <Pages />
           <Palette />
+          <Components />
           <Layers />
         </div>
 
         <div className="we-canvas">
+          {editingComponentId && (
+            <div className="we-editing-banner">
+              <span>↻ Editing component: {editingComponentName}</span>
+              <button onClick={() => exitComponent()}>Done</button>
+            </div>
+          )}
           <div className={breakpoint === 'mobile' ? 'we-mobile-frame' : undefined}>
             {mode === 'visual' && <NodeRenderer id={doc.root} />}
             {mode === 'preview' && (
@@ -228,7 +245,7 @@ export function WebEditor({ value, onChange, config }: WebEditorProps) {
             )}
             {mode === 'code' && (
               <pre className="we-code-preview">
-                {toHtmlDocument(doc, { renderIcon })}
+                {toHtmlDocument(doc, exportCtx)}
               </pre>
             )}
           </div>

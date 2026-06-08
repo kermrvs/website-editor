@@ -188,6 +188,9 @@ export function Inspector() {
   const removeNode = useEditorStore((s) => s.removeNode)
   const duplicateNode = useEditorStore((s) => s.duplicateNode)
   const breakpoint = useEditorStore((s) => s.breakpoint)
+  const createComponent = useEditorStore((s) => s.createComponent)
+  const editComponent = useEditorStore((s) => s.editComponent)
+  const components = useEditorStore((s) => s.project.components)
   const config = useConfig()
 
   if (!node) {
@@ -238,6 +241,21 @@ export function Inspector() {
       <div className="we-panel-title">{node.type}</div>
       {breakpoint === 'mobile' && (
         <div className="we-bp-banner">📱 Editing Mobile styles</div>
+      )}
+
+      {node.type === 'instance' && (
+        <>
+          <div className="we-palette-hint">
+            Instance of{' '}
+            {components[p.componentId as string]?.name ?? '(missing)'}
+          </div>
+          <button
+            className="we-secondary"
+            onClick={() => editComponent(p.componentId as string)}
+          >
+            Edit component
+          </button>
+        </>
       )}
 
       {'text' in p && (
@@ -974,6 +992,14 @@ export function Inspector() {
       <button className="we-secondary" onClick={() => duplicateNode(node.id)}>
         Duplicate
       </button>
+      {node.type !== 'instance' && node.type !== 'root' && (
+        <button
+          className="we-secondary"
+          onClick={() => createComponent(node.id)}
+        >
+          Make component
+        </button>
+      )}
       <button className="we-delete" onClick={() => removeNode(node.id)}>
         Delete block
       </button>

@@ -176,6 +176,78 @@
   border-bottom: 1px solid var(--we-border);
 }
 
+.we-components {
+  padding: 12px;
+  border-bottom: 1px solid var(--we-border);
+}
+
+.we-component {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--we-border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.we-component.editing {
+  border-color: var(--we-accent);
+  background: #eef2ff;
+}
+
+.we-component-name {
+  flex: 1;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-component-add {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--we-border);
+  background: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.we-component-add:hover {
+  border-color: var(--we-accent);
+}
+
+.we-instance {
+  outline: 1px dashed var(--we-accent);
+  outline-offset: -1px;
+}
+
+.we-editing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #1f2937;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.we-editing-banner button {
+  padding: 4px 12px;
+  border: none;
+  background: var(--we-accent);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .we-layers {
   padding: 12px;
 }

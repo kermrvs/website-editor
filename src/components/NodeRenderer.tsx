@@ -14,9 +14,16 @@ import { useEditorStore } from '../store'
 import { EditableText } from './EditableText'
 import { FormControl } from './FormControl'
 import { Icon } from './Icon'
+import { PreviewNode } from './Preview'
 
 interface Props {
   id: NodeId
+}
+
+function InstanceBody({ componentId }: { componentId: string }) {
+  const comp = useEditorStore((s) => s.project.components[componentId])
+  if (!comp) return <span className="we-empty">Missing component</span>
+  return <PreviewNode id={comp.doc.root} nodes={comp.doc.nodes} />
 }
 
 function computeDropIndex(
@@ -350,6 +357,23 @@ export function NodeRenderer({ id }: Props) {
             ...selectionStyle,
           }}
         />
+      )
+
+    case 'instance':
+      return (
+        <div
+          data-node-id={id}
+          draggable
+          onClick={onClick}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="we-instance"
+          style={{ ...base, ...selectionStyle }}
+        >
+          <div style={{ pointerEvents: 'none' }}>
+            <InstanceBody componentId={p.componentId as string} />
+          </div>
+        </div>
       )
 
     case 'select':

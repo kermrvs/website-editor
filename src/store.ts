@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import type { EditorDocument, NodeId, NodeType } from './model/types'
 import type { Project } from './model/project'
-import { createEmptyProject, createPage, currentDoc } from './model/project'
+import {
+  createEmptyProject,
+  createPage,
+  currentDoc,
+  makeComponentId,
+} from './model/project'
 import {
   canHaveChildren,
   createNode,
@@ -141,8 +146,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
     draggingType: null,
     dropTarget: null,
 
-    setProject: (project) =>
+    setProject: (incoming) =>
       set((state) => {
+        const project = {
+          ...incoming,
+          components: incoming.components ?? {},
+        }
         const doc = currentDoc(project)
         const selectedId =
           state.selectedId && doc.nodes[state.selectedId]
@@ -240,6 +249,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
           project: { ...state.project, currentPageId: id },
           doc: page.doc,
           selectedId: null,
+          editingComponentId: null,
           lastTag: null,
         }
       }),
@@ -414,5 +424,105 @@ export const useEditorStore = create<EditorState>((set, get) => {
     startDragNew: (type) => set({ draggingType: type, draggingId: null }),
     setDropTarget: (target) => set({ dropTarget: target }),
     endDrag: () => set({ draggingId: null, draggingType: null, dropTarget: null }),
+
+    createComponent: (nodeId) =>
+      set((state) => {
+        const doc = state.doc
+        if (nodeId === doc.root || !doc.nodes[nodeId]) return state
+
+        const subtree = new Set<string>()
+        const stack = [nodeId]
+        while (stack.length) {
+          const current = stack.pop()!
+          subtree.add(current)
+          const n = doc.nodes[current]
+          if (n) stack.push(...n.children)
+        }
+
+        const componentNodes: Record<string, (typeof doc.nodes)[string]> = {}
+        for (const sid of subtree) componentNodes[sid] = doc.nodes[sid]
+
+        const componentId = makeComponentId()
+        const name = `Component ${Object.keys(state.project.components).length + 1}`
+
+        const instance = createNode('instance')
+        instance.props = { componentId }
+
+        const parentId = findParentId(doc, nodeId)
+        const pageNodes = { ...doc.nodes }
+        for (const sid of subtree) delete pageNodes[sid]
+        pageNodes[instance.id] = instance
+        if (parentId && pageNodes[parentId]) {
+          const idx = doc.nodes[parentId].children.indexOf(nodeId)
+          const children = [...pageNodes[parentId].children]
+          children[idx] = instance.id
+          pageNodes[parentId] = { ...pageNodes[parentId], children }
+        }
+
+        const newDoc = { ...doc, nodes: pageNodes }
+        let project = writeDoc(state.project, state, newDoc)
+        project = {
+          ...project,
+          components: {
+            ...project.components,
+            [componentId]: { id: componentId, name, doc: { root: nodeId, nodes: componentNodes } },
+          },
+        }
+
+        return {
+          ...pushHistory(state),
+          project,
+          doc: newDoc,
+          selectedId: instance.id,
+        }
+      }),
+
+    insertInstance: (componentId, parentId, index) => {
+      const { doc, editingComponentId } = get()
+      if (editingComponentId === componentId) return
+      const parent = doc.nodes[parentId]
+      if (!parent || !canHaveChildren(parent.type)) return
+
+      const instance = createNode('instance')
+      instance.props = { componentId }
+      const children = [...parent.children]
+      const at =
+        index === undefined
+          ? children.length
+          : Math.max(0, Math.min(index, children.length))
+      children.splice(at, 0, instance.id)
+
+      commit(
+        {
+          ...doc,
+          nodes: {
+            ...doc.nodes,
+            [instance.id]: instance,
+            [parentId]: { ...parent, children },
+          },
+        },
+        { selectedId: instance.id },
+      )
+    },
+
+    editComponent: (componentId) =>
+      set((state) => {
+        const comp = state.project.components[componentId]
+        if (!comp) return state
+        return {
+          editingComponentId: componentId,
+          doc: comp.doc,
+          selectedId: null,
+          lastTag: null,
+        }
+      }),
+
+    exitComponent: () =>
+      set((state) => ({
+        editingComponentId: null,
+        doc: currentDoc(state.project),
+        selectedId: null,
+        lastTag: null,
+      })),
   }
 })

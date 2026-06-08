@@ -1,18 +1,30 @@
 import { useState } from 'react'
 import type { JSX, ReactNode } from 'react'
-import type { NodeId } from '../model/types'
+import type { EditorNode, NodeId } from '../model/types'
 import { describeNode, propsAt, styleFromProps } from '../model/render'
 import { FormControl } from './FormControl'
 import { Icon } from './Icon'
 import { useEditorStore } from '../store'
 
-function PreviewNode({ id }: { id: NodeId }) {
-  const node = useEditorStore((s) => s.doc.nodes[id])
+interface NodeProps {
+  id: NodeId
+  nodes?: Record<string, EditorNode>
+}
+
+export function PreviewNode({ id, nodes }: NodeProps) {
+  const node = useEditorStore((s) => (nodes ? nodes[id] : s.doc.nodes[id]))
   const selectPage = useEditorStore((s) => s.selectPage)
   const breakpoint = useEditorStore((s) => s.breakpoint)
+  const components = useEditorStore((s) => s.project.components)
   const [hovered, setHovered] = useState(false)
 
   if (!node) return null
+
+  if (node.type === 'instance') {
+    const comp = components[node.props.componentId as string]
+    if (!comp) return null
+    return <PreviewNode id={comp.doc.root} nodes={comp.doc.nodes} />
+  }
 
   const p = propsAt(node.props, breakpoint)
   const view = describeNode(node, undefined, breakpoint)
@@ -81,7 +93,7 @@ function PreviewNode({ id }: { id: NodeId }) {
         onSubmit={(e) => e.preventDefault()}
       >
         {node.children.map((childId) => (
-          <PreviewNode key={childId} id={childId} />
+          <PreviewNode key={childId} id={childId} nodes={nodes} />
         ))}
       </form>
     )
@@ -105,7 +117,7 @@ function PreviewNode({ id }: { id: NodeId }) {
       element = (
         <Tag style={style} {...attrs} {...hoverHandlers}>
           {node.children.map((childId) => (
-            <PreviewNode key={childId} id={childId} />
+            <PreviewNode key={childId} id={childId} nodes={nodes} />
           ))}
         </Tag>
       )
